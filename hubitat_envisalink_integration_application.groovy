@@ -24,8 +24,8 @@
 **********	See Release Notes at the bottom ******************
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.14.0"  }
-def boolean isDebug
+public static String version()      {  return "v0.16.0"  }
+public boolean isDebug() { return state.isDebug }
 
 definition(
     name: "Envisalink Integration",
@@ -52,6 +52,8 @@ preferences {
 //App Pages/Views
 def mainPage() {
     ifDebug("Showing mainPage")
+	state.isDebug = isDebug
+	
 	return dynamicPage(name: "mainPage", title: "", install: false, uninstall: true) {
         if(!state.envisalinkIntegrationInstalled && getChildDevices().size() == 0) {
             section("Define your Envisalink device") {
@@ -66,7 +68,7 @@ def mainPage() {
              state.enableHSM = enableHSM
                 section("<h3>Safety Monitor</h3>") {
                     paragraph "Enabling Hubitat Safety Monitor Integration will tie your Envisalink state to the state of HSM.  Your Envisalink will receive the Arm Away, Arm Home and Disarm commands based on the HSM state. " 
-                        input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: true, submitOnChange: true
+                        input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: false, submitOnChange: true
                }
             
       
@@ -84,7 +86,7 @@ def mainPage() {
                   page: "aboutPage")	
         }
         section("") {
-            input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: true, submitOnChange: true
+            input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
         }
 
     }
@@ -297,26 +299,43 @@ def uninstalled() {
 def statusHandler(evt) {
     log.info "HSM Alert: $evt.value"
     
-    if (evt.value && state.enableHSM)
+
+    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Exit Delay in Progress" 
+        && getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Entry Delay in Progress")
     {
-		ifDebug("HSM is enabled")
-        switch(evt.value){
-         	case "armedAway":
-            ifDebug("Sending Arm Away")
-            	getChildDevice(state.EnvisalinkDNI).ArmAway()
-            	break
-            case "armedHome":
-            ifDebug("Sending Arm Home")
-            	getChildDevice(state.EnvisalinkDNI).ArmHome()
-            	break
-            case "armedNight":
-            ifDebug("Sending Arm Home")
-            	getChildDevice(state.EnvisalinkDNI).ArmHome()
-            	break
-            case "disarmed":
-            ifDebug("Sending Disarm")
-            	getChildDevice(state.EnvisalinkDNI).Disarm()
-            	break
+        if (evt.value && state.enableHSM)
+        {
+            ifDebug("HSM is enabled")
+            switch(evt.value){
+                case "armedAway":
+                ifDebug("Sending Arm Away")
+                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+                    {
+                        getChildDevice(state.EnvisalinkDNI).ArmAway()
+                    }
+                    break
+                case "armedHome":
+                ifDebug("Sending Arm Home")
+                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+                    {
+                        getChildDevice(state.EnvisalinkDNI).ArmHome()
+                    }
+                    break
+                case "armedNight":
+                ifDebug("Sending Arm Home")
+                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+                    {
+                        getChildDevice(state.EnvisalinkDNI).ArmHome()
+                    }
+                    break
+                case "disarmed":
+                ifDebug("Sending Disarm")
+                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready")
+                    {
+                        getChildDevice(state.EnvisalinkDNI).Disarm()
+                    }
+                    break
+            }
         }
     }
 }
@@ -327,6 +346,13 @@ private removeChildDevices(delete) {
 
 
 /***********************************************************************************************************************
+* Version: 0.16.0
+*   Fixed HSM Integration Initialization to default to False
+* 	Fixed Debug Toggle
+*
+* Version: 0.15.0
+*   Add deeper integration with HSM
+*
 * Version: 0.14.0
 *	Added armedNight Handler
 *
@@ -346,5 +372,4 @@ private removeChildDevices(delete) {
 *		Creates the Envisalink Connection device and allows definition of Zone Maps, creating virtual contact sensors as child components.
 *		Allows subscription to HSM to mirror the state of HSM to Envisalink (ArmAway, ArmHome, Disarm)
 */
-
 
