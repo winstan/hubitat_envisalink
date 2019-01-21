@@ -25,8 +25,8 @@
 *	See Release Notes at the bottom
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.13.1"  }
-def boolean isDebug
+public static String version()      {  return "v0.17.0"  }
+public static boolean isDebug() { return true }
 
 
 import groovy.transform.Field
@@ -40,6 +40,7 @@ metadata {
 		capability "Telnet"
 		capability "Alarm"
         capability "Switch"
+        capability "Actuator"
         command "sendMsg", ["String"]
         command "StatusReport"
         command "ArmAway"
@@ -69,8 +70,8 @@ def installed() {
    }
 
 def updated() {
-	log.info "updated..."
-    log.debug "Configuring IP: ${ip}, Code: ${code}, Password: ${passwd}"
+	ifDebug("updated...")
+    ifDebug("Configuring IP: ${ip}, Code: ${code}, Password: ${passwd}")
     
 	initialize()
 }
@@ -82,7 +83,7 @@ def initialize() {
 		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
 		//give it a chance to start
 		pauseExecution(1000)
-		log.info "Telnet connection to Envisalink established"
+		ifDebug("Telnet connection to Envisalink established")
         //poll()
 	} catch(e) {
 		log.warn "initialize error: ${e.message}"
@@ -106,31 +107,31 @@ def off(){
 }
 
 def ArmAway(){
-	ifDebug("Arm Away")
+	ifDebug("ArmAway()")
     def message = "0301"
     sendMsg(message)
 }
 
 def ArmHome(){
- 	ifDebug("Arm Home")
+ 	ifDebug("armHome()")
     def message = "0311"
     sendMsg(message)
 }
 
 def both(){
-    ifDebug("Both")
+    ifDebug("both()")
  	siren()
     strobe()
 }
 
 def ChimeToggle(){
-	ifDebug("Chime Toggle Command")
+	ifDebug("ChimeToggle()")
     def message = "0711*4"
     sendMsg(message)
 }
 
 def Disarm(){
- 	ifDebug("Disarm")
+ 	ifDebug("Disarm()")
     def message = "0401" + code
     sendMsg(message)
 }
@@ -175,8 +176,9 @@ def createZone(zoneInfo){
     } else {
      	addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])   
         newDevice = getChildDevice(zoneInfo.deviceNetworkId)
-	newDevice.updateSetting("autoInactive",[type:"enum", value:"0"])
+        newDevice.updateSetting("autoInactive",[type:"enum", value:0])
     }
+    
 }
 
 def removeZone(zoneInfo){
@@ -209,21 +211,28 @@ private parse(String message) {
     }
     if(message.startsWith("652")) {
         sendEvent(name:"Status", value: "Armed", displayed:false, isStateChange: true)
+		sendEvent(name: "switch", value: "on")
+        systemArmed()
     }
     if(message.startsWith("653")) {
         sendEvent(name:"Status", value: "Ready - Force Arming Enabled", displayed:false, isStateChange: true)
     }
     if(message.startsWith("654")) {
         sendEvent(name:"Status", value: "In Alarm", displayed:false, isStateChange: true)
+		alarming()
     }
     if(message.startsWith("655")) {
         sendEvent(name:"Status", value: "Disarmed", displayed:false, isStateChange: true)
+		sendEvent(name: "switch", value: "off")
+        disarming()
     }   
     if(message.startsWith("656")) {
         sendEvent(name:"Status", value: "Exit Delay in Progress", displayed:false, isStateChange: true)
+		exitDelay()
     }
     if(message.startsWith("657")) {
         sendEvent(name:"Status", value: "Entry Delay in Progress", displayed:false, isStateChange: true)
+		entryDelay()
     }
     if(message.startsWith("658")) {
         sendEvent(name:"Status", value: "Keypad Lock-out", displayed:false, isStateChange: true)
@@ -287,6 +296,51 @@ def systemError(message){
     log.debug "System Error: ${message} - ${errorCodes.getAt(message)}"
 }
 
+def disarming(){
+	if (state.armState != "disarmed"){
+		ifDebug("disarming")
+		state.armState = "disarmed"
+		parent.unlockIt()
+		parent.speakDisarmed()
+
+		if (location.hsmStatus != "disarmed")
+		{
+			sendLocationEvent(name: "hsmSetArm", value: "disarm")
+		}
+	}
+}
+
+def systemArmed(){
+	if (state.armState != "armed"){
+		ifDebug("armed")
+		state.armState = "armed"
+		parent.lockIt()
+		parent.speakArmed()
+
+		if (location.hsmStatus == "disarmed")
+		{
+			sendLocationEvent(name: "hsmSetArm", value: "armHome")
+		}
+	}
+}
+
+def entryDelay(){
+	 ifDebug("entryDelay")
+		state.armState = "intrusion"
+		parent.speakEntryDelay()
+}
+
+def exitDelay(){
+	 ifDebug("exitDelay")
+		state.armState = "exit"
+		parent.speakExitDelay()
+}
+
+def alarming(){
+	 ifDebug("alarm")
+		state.armState = "alarming"
+		parent.speakAlarm()
+}
 
 //helpers
 private checkTimeStamp(message){
@@ -346,7 +400,7 @@ private sendLogin(){
 
 def sendMsg(String s) {
     s = generateChksum(s)
-    ifDebug(s)
+    ifDebug("sendMsg $s")
 	return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
 }
 
@@ -371,7 +425,7 @@ def telnetStatus(String status){
 
 private ifDebug(msg)     
 {  
-    if (msg && isDebug)  log.debug 'Envisalink Integration: ' + msg  
+	parent.ifDebug('Connection Driver: ' + msg)
 }
 
 @Field Pattern timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /   
@@ -476,6 +530,17 @@ private ifDebug(msg)
 ]
 
 /***********************************************************************************************************************
+* Version: 0.17.0
+*	Added TTS
+* 	Locks
+*	Notifications
+*	Unified Logging
+*	Syncing Versioning
+*
+* Version: 0.15.0
+*	Version Sync with App
+*   Add deeper integration with HSM
+*
 * Version: 0.13.0
 *	Fixed Zone Type Conversion (Always setting up Motion Sensor)
 * Version: 0.13.0
