@@ -24,8 +24,7 @@
 **********	See Release Notes at the bottom ******************
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.16.0"  }
-public boolean isDebug() { return state.isDebug }
+public static String version()      {  return "v0.17.0"  }
 
 definition(
     name: "Envisalink Integration",
@@ -65,22 +64,82 @@ def mainPage() {
             }
         }
         else {
-             state.enableHSM = enableHSM
-                section("<h3>Safety Monitor</h3>") {
-                    paragraph "Enabling Hubitat Safety Monitor Integration will tie your Envisalink state to the state of HSM.  Your Envisalink will receive the Arm Away, Arm Home and Disarm commands based on the HSM state. " 
-                        input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: false, submitOnChange: true
-               }
-            
-      
-        
-            
-             section("") {
+			section("<h1>Zone Mapping</h1>") {
                 href (name: "zoneMapsPage", title: "Zones", 
                 description: "Create Virtual Contacts and Map them to Existing Zones in your Envisalink setup",
                 page: "zoneMapsPage")	
             }
+			
+			
+             state.enableHSM = enableHSM
+                section("<h1>Safety Monitor</h1>") {
+                    paragraph "Enabling Hubitat Safety Monitor Integration will tie your Envisalink state to the state of HSM.  Your Envisalink will receive the Arm Away, Arm Home and Disarm commands based on the HSM state. " 
+                        input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: false, submitOnChange: true
+               }
+            
+			section("<h1>Notifications</h1>"){
+				paragraph "Enable TTS and Notification integration will announcing arming and disarming over your supported audio and/or push enabled device"
+					
+				paragraph "<h3><b>Notification Text</b></h2>"
+					
+				input "armingHomeBool", "bool", title: "Enable Arming Home Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (armingHomeBool){
+					input "armingHomeText", "text", title: "Notification for Arming Home", required: false, multiple: false, defaultValue: "Arming Home", submitOnChange: false, visible: armingHomeBool
+				}
+					
+				input "armingAwayBool", "bool", title: "Enable Arming Away Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (armingAwayBool){
+					input "armingAwayText", "text", title: "Notification for Arming Away", required: false, multiple: false, defaultValue: "Arming Away", submitOnChange: false
+				}
+				input "armingNightBool", "bool", title: "Enable Arming Night Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (armingNightBool){
+					input "armingNightText", "text", title: "Notification for Arming Night", required: false, multiple: false, defaultValue: "Arming Night", submitOnChange: false
+				}
+				input "armedBool", "bool", title: "Enable Armed Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (armedBool){
+					input "armedText", "text", title: "Notification for Armed", required: false, multiple: false, defaultValue: "Armed", submitOnChange: false
+				}
+				input "disarmingBool", "bool", title: "Enable Disarming Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (disarmingBool){
+					input "disarmingText", "text", title: "Notification for Disarming", required: false, multiple: false, defaultValue: "Disarming", submitOnChange: false
+				}
+				input "disarmedBool", "bool", title: "Enable Disarmed Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (disarmedBool){
+					input "disarmedText", "text", title: "Notification for Disarmed", required: false, multiple: false, defaultValue: "Disarmed", submitOnChange: false
+				}
+				input "entryDelayAlarmBool", "bool", title: "Enable Entry Delay Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (entryDelayAlarmBool){
+					input "entryDelayAlarmText", "text", title: "Notification for Entry Delay", required: false, multiple: false, defaultValue: "Entry Delay in Progress, Alarm eminent", submitOnChange: false
+				}
+				input "exitDelayAlarmBool", "bool", title: "Enable Exit Delay Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (exitDelayAlarmBool){
+					input "exitDelayAlarmText", "text", title: "Notification for Exit Delay", required: false, multiple: false, defaultValue: "", submitOnChange: false
+				}
+				input "alarmBool", "bool", title: "Enable Alarm Notification", required: false, multiple: false, defaultValue: false, submitOnChange: true
+				if (alarmBool){
+					input "alarmText", "text", title: "Notification for Alarm", required: false, multiple: false, defaultValue: "Alarm, Alarm, Alarm, Alarm, Alarm", submitOnChange: false
+				}
+				paragraph "<h3><b>Notification Devices</b></h2>"
+				input "speechDevices", "capability.speechSynthesis", title: "Which speech devices?", required:false, multiple:true, submitOnChange:true
+				input "notificationDevices", "capability.notification", title: "Which notification devices?", required:false, multiple:true, submitOnChange:true
+				
+					/*
+					Coming Soon
+					paragraph "<h2><b>Notification Restrictions</b></h2>"
+					input "restrictionTimeStart", "time", title:"Start Restricted Time", required: levelRequired,  submitOnChange:true
+					input "restrictionTimeStop", "time", title:"Stop Restricted Time", required: levelRequired,  submitOnChange:true	
+					*/
+			}
+        
+			section("<h1>Locks</h1>"){
+				paragraph "Enable Lock Integration, selected locks will lock when armed and/or unlock when disarmed"
+					input "armLocks", "capability.lock", title: "Which locks to lock when armed?", required:false, multiple:true, submitOnChange:true
+					input "disarmLocks", "capability.lock", title: "Which locks to unlock when disarmed?", required:false, multiple:true, submitOnChange:true
+			}
+            
+             
         }
-        section("") {
+        section("<br/><br/>") {
             href (name: "aboutPage", title: "About", 
                   description: "Find out more about Envisalink Integration",
                   page: "aboutPage")	
@@ -119,22 +178,7 @@ def zoneMapsPage() {
     {
         createZone()
     }
-    /* Maybe coming soon?
-    if (state.editingZone)
-    {
-     	editZone()   
-    }
-	
-    ifDebug("DeleteZone? ${state.deleteZone}")
-    if (state.deleteZone == true){
-        section("Deleted Zone"){
-            paragraph "Deleted your Zone"
-            state.deleteZone == false
-        }
-        
-    }
-	*/
-    
+   
 	dynamicPage(name: "zoneMapsPage", title: "", install: true, uninstall: false){
        
         section("<h1>Zone Maps</h1>"){
@@ -181,8 +225,6 @@ def editZoneMapPage(message) {
     state.allZones = getChildDevice(state.EnvisalinkDNI).getChildDevices()
     def zoneDevice = getChildDevice(state.EnvisalinkDNI).getChildDevice(message.deviceNetworkId)
     def paragraphText = ""
-    //Maybe Editing and Deleting coming soon
-    //state.editingZone = true;
     state.editedZoneDNI = message.deviceNetworkId;
     if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}){
         paragraphText = paragraphText + "Motion Sensor\n"
@@ -194,11 +236,7 @@ def editZoneMapPage(message) {
         section("<h1>${zoneDevice.label}</h1>"){
             paragraph paragraphText
         }
-        /*
-        section("<h2>Delete this Zone", title: ""){
-         	input "deleteZoneBool", "bool", title: "Are you sure?", required: false, multiple: false, submitOnChange: true
-        }
-		*/
+      
     }
     
     
@@ -271,7 +309,7 @@ def editZone(){
 
 private ifDebug(msg)     
 {  
-    if (msg && isDebug)  log.debug 'Envisalink Integration: ' + msg  
+    if (msg && state.isDebug)  log.debug 'Envisalink Integration: ' + msg  
 }
 
 //General App Events
@@ -281,13 +319,14 @@ def installed() {
 }
 
 def updated() {
-    
-    
+	log.info "updated"
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
+	log.info "initialize"
+	unsubscribe()
     state.creatingZone = false;
     subscribe(location, "hsmStatus", statusHandler)
 }
@@ -298,46 +337,170 @@ def uninstalled() {
 
 def statusHandler(evt) {
     log.info "HSM Alert: $evt.value"
-    
+	def lock
+	if (!lock){
+		lock = true
+		if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Exit Delay in Progress" 
+			&& getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Entry Delay in Progress"
+		   	&& evt.value != "disarmed")
+		{
+			if (evt.value && state.enableHSM)
+			{
+				ifDebug("HSM is enabled")
+				switch(evt.value){
+					case "armedAway":
+					ifDebug("Sending Arm Away")
+						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+						{
+							speakArmingAway()
+							getChildDevice(state.EnvisalinkDNI).ArmAway()
+						}
+						break
+					case "armedHome":
+					ifDebug("Sending Arm Home")
+						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+						{
+							speakArmingHome()
+							getChildDevice(state.EnvisalinkDNI).ArmHome()
+						}
+						break
+					case "armedNight":
+					ifDebug("Sending Arm Home")
+						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+						{
+							speakArmingNight()
+							getChildDevice(state.EnvisalinkDNI).ArmHome()
+						}
+						break
+					
+				}
+			}
+		} else {
+			if (evt.value == "disarmed")
+			{
+				if (state.enableHSM)
+				{
+					ifDebug("HSM is enabled")
+					ifDebug("Sending Disarm")
+					if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready")
+					{
+						speakDisarming()
+						getChildDevice(state.EnvisalinkDNI).Disarm()
+					}
+				}
+			}
+		}
+		lock = false;
+	}
+}
 
-    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Exit Delay in Progress" 
-        && getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Entry Delay in Progress")
-    {
-        if (evt.value && state.enableHSM)
-        {
-            ifDebug("HSM is enabled")
-            switch(evt.value){
-                case "armedAway":
-                ifDebug("Sending Arm Away")
-                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
-                    {
-                        getChildDevice(state.EnvisalinkDNI).ArmAway()
-                    }
-                    break
-                case "armedHome":
-                ifDebug("Sending Arm Home")
-                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
-                    {
-                        getChildDevice(state.EnvisalinkDNI).ArmHome()
-                    }
-                    break
-                case "armedNight":
-                ifDebug("Sending Arm Home")
-                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
-                    {
-                        getChildDevice(state.EnvisalinkDNI).ArmHome()
-                    }
-                    break
-                case "disarmed":
-                ifDebug("Sending Disarm")
-                    if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready")
-                    {
-                        getChildDevice(state.EnvisalinkDNI).Disarm()
-                    }
-                    break
-            }
-        }
-    }
+def speakArmed(){
+	if (!armedBool) return
+	if (armedText != ""){
+		speakIt(armedText)	
+	} 
+}
+
+def speakArmingAway(){
+	if (!armingAwayBool) return
+	if (armingAwayText){
+		speakIt(armingAwayText)	
+	} else {
+		speakIt("Arming Away")	
+	}
+}
+
+def speakArmingHome(){
+	if (!armingHomeBool) return
+	if (armingHomeText != ""){
+		speakIt(armingHomeText)	
+	} 
+}
+
+def speakArmingNight(){
+	if (!armingNightBool) return
+	if (armingNightText != ""){
+		speakIt(armingNightText)	
+	} 
+}
+
+def speakDisarming(){
+	if (!disarmingBool) return
+	if (disarmedText){
+		speakIt(disarmingText)	
+	} else {
+		speakIt("Disarming")	
+	}
+	
+}
+
+def speakDisarmed(){
+	if (!disarmedBool) return
+	if (disarmedText != ""){
+		speakIt(disarmedText)	
+	} 
+}
+
+def speakEntryDelay(){
+	if (!entryDelayAlarmBool) return
+	if (entryDelayAlarmText != ""){
+		speakIt(entryDelayAlarmText)	
+	} 
+}
+
+def speakExitDelay(){
+	if (!exitDelayAlarmBool) return
+	if (exitDelayAlarmText != ""){
+		speakIt(exitDelayAlarmText)	
+	} 
+}
+
+
+def speakAlarm(){
+	if (!alarmBool) return
+	if (alarmText != ""){
+		speakIt(alarmText)	
+	} 
+}
+
+private speakIt(str)	{
+	ifDebug("TTS: $str")
+	if (state.speaking)		{
+		ifDebug("Already Speaking")
+		runOnce(new Date(now() + 10000), speakRetry, [overwrite: false, data: [str: str]])
+		return
+	}
+	
+	if (!speechDevices)		return;
+	ifDebug("Found Speech Devices")
+		
+	state.speaking = true
+	speechDevices.speak(str)
+	
+	if (notificationDevices){
+		ifDebug("Found Notification Devices")
+		notificationDevices.deviceNotification(str)	
+	}
+	state.speaking = false
+}
+
+private lockIt(){
+	ifDebug("Lock")
+	if (!armLocks) return
+	ifDebug("Found Lock")
+	armLocks.lock()
+}
+
+private unlockIt(){
+	ifDebug("Unlock")
+	if (!disarmLocks) return
+	ifDebug("Found Lock")
+	disarmLocks.unlock()
+}	
+
+
+def speakRetry(data)	{
+	if (data.str)		speakIt(data.str);
 }
 
 private removeChildDevices(delete) {
@@ -346,6 +509,11 @@ private removeChildDevices(delete) {
 
 
 /***********************************************************************************************************************
+* Version: 0.17.0
+*	Added TTS
+* 	Locks
+*	Notifications
+*
 * Version: 0.16.0
 *   Fixed HSM Integration Initialization to default to False
 * 	Fixed Debug Toggle
