@@ -24,7 +24,7 @@
 **********	See Release Notes at the bottom ******************
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.17.0"  }
+public static String version()      {  return "v0.2.1"  }
 
 definition(
     name: "Envisalink Integration",
@@ -41,6 +41,8 @@ definition(
 preferences {
 	page(name: "mainPage", nextPage: "zoneMapsPage")
     page(name: "zoneMapsPage", nextPage: "mainPage")
+	page(name: "notificationPage", nextPage: "mainPage")
+	page(name: "lockPage", nextPage: "mainPage")
     page(name: "defineZoneMap", nextPage: "zoneMapsPage")
     page(name: "editZoneMapPage", nextPage: "zoneMapsPage")
     page(name: "aboutPage", nextPage: "mainPage")
@@ -70,6 +72,17 @@ def mainPage() {
                 page: "zoneMapsPage")	
             }
 			
+			section("<h1>Notifications</h1>") {
+                href (name: "notificationPage", title: "Notifications", 
+                description: "Enable Push and TTS Messages",
+                page: "notificationPage")	
+            }
+			
+			section("<h1>Locks</h1>") {
+                href (name: "lockPage", title: "Locks", 
+                description: "Integrate Locks",
+                page: "lockPage")	
+            }
 			
              state.enableHSM = enableHSM
                 section("<h1>Safety Monitor</h1>") {
@@ -77,7 +90,57 @@ def mainPage() {
                         input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: false, submitOnChange: true
                }
             
-			section("<h1>Notifications</h1>"){
+			
+        
+			
+            
+             
+        }
+        section("<br/><br/>") {
+            href (name: "aboutPage", title: "About", 
+                  description: "Find out more about Envisalink Integration",
+                  page: "aboutPage")	
+        }
+        section("") {
+            input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
+        }
+
+    }
+}
+
+def aboutPage() {
+    ifDebug("Showing aboutPage")
+    
+	dynamicPage(name: "aboutPage", title: none){
+        section("<h1>Introducing Envisalink Integration</h1>"){
+            paragraph "An EyezOn EnvisaLink module allows you to upgrade your existing security system with IP control ... " +
+                "Envisalink Integration connects to your Envisalink module via Telnet, using eyezon's public TPI."
+            paragraph "Evisalink Integration automates installation and configuration of the Envisalink Connection Driver" +
+                " as well as Virtual Contacts representing the dry contact zones and Virtual Motion Detection configured in your DSC Alarm system."
+            paragraph "You must have the Hubitat Envisalink Connection driver already installed before making use of Envisalink Integration application " +
+                "https://github.com/omayhemo/hubitat_envisalink/blob/master/hubitat_envisalink_connection_driver.groovy"
+			paragraph "Currently, Envisalink Integration application and Connection driver only work with DSC"
+            paragraph "Special Thanks to the Hubitat staff and cuboy29."
+        }
+	}
+}
+
+def lockPage() {
+    ifDebug("Showing lockPage")
+    
+	dynamicPage(name: "lockPage", title: none){
+        section("<h1>Locks</h1>"){
+				paragraph "Enable Lock Integration, selected locks will lock when armed and/or unlock when disarmed"
+					input "armLocks", "capability.lock", title: "Which locks to lock when armed?", required:false, multiple:true, submitOnChange:true
+					input "disarmLocks", "capability.lock", title: "Which locks to unlock when disarmed?", required:false, multiple:true, submitOnChange:true
+			}
+	}
+}
+
+
+def notificationPage(){
+	dynamicPage(name: "notificationPage", title: none){
+		section("<h1>Notifications</h1>"){
 				paragraph "Enable TTS and Notification integration will announcing arming and disarming over your supported audio and/or push enabled device"
 					
 				paragraph "<h3><b>Notification Text</b></h2>"
@@ -122,48 +185,8 @@ def mainPage() {
 				paragraph "<h3><b>Notification Devices</b></h2>"
 				input "speechDevices", "capability.speechSynthesis", title: "Which speech devices?", required:false, multiple:true, submitOnChange:true
 				input "notificationDevices", "capability.notification", title: "Which notification devices?", required:false, multiple:true, submitOnChange:true
-				
-					/*
-					Coming Soon
-					paragraph "<h2><b>Notification Restrictions</b></h2>"
-					input "restrictionTimeStart", "time", title:"Start Restricted Time", required: levelRequired,  submitOnChange:true
-					input "restrictionTimeStop", "time", title:"Stop Restricted Time", required: levelRequired,  submitOnChange:true	
-					*/
+					
 			}
-        
-			section("<h1>Locks</h1>"){
-				paragraph "Enable Lock Integration, selected locks will lock when armed and/or unlock when disarmed"
-					input "armLocks", "capability.lock", title: "Which locks to lock when armed?", required:false, multiple:true, submitOnChange:true
-					input "disarmLocks", "capability.lock", title: "Which locks to unlock when disarmed?", required:false, multiple:true, submitOnChange:true
-			}
-            
-             
-        }
-        section("<br/><br/>") {
-            href (name: "aboutPage", title: "About", 
-                  description: "Find out more about Envisalink Integration",
-                  page: "aboutPage")	
-        }
-        section("") {
-            input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
-        }
-
-    }
-}
-
-def aboutPage() {
-    ifDebug("Showing aboutPage")
-    
-	dynamicPage(name: "aboutPage", title: none){
-        section("<h1>Introducing Envisalink Integration</h1>"){
-            paragraph "An EyezOn EnvisaLink module allows you to upgrade your existing security system with IP control ... " +
-                "Envisalink Integration connects to your Envisalink module via Telnet, using eyezon's public TPI."
-            paragraph "Evisalink Integration automates installation and configuration of the Envisalink Connection Driver" +
-                " as well as Virtual Contacts representing the dry contact zones configured in your DSC Alarm system."
-            paragraph "You must have the Hubitat Envisalink Connection driver already installed before making use of Envisalink Integration application " +
-                "https://github.com/omayhemo/hubitat_envisalink/blob/master/hubitat_envisalink_connection_driver.groovy"
-            paragraph "Special Thanks to the Hubitat staff and cuboy29."
-        }
 	}
 }
 
@@ -509,6 +532,13 @@ private removeChildDevices(delete) {
 
 
 /***********************************************************************************************************************
+/***********************************************************************************************************************
+* Version: 0.2.1
+* 	Spelling mistake
+*
+* Version: 0.2.0
+* 	UI Changes
+*
 * Version: 0.17.0
 *	Added TTS
 * 	Locks
