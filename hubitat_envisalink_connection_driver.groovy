@@ -25,9 +25,7 @@
 *	See Release Notes at the bottom
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.17.0"  }
-public static boolean isDebug() { return true }
-
+public static String version()      {  return "v0.2.0"  }
 
 import groovy.transform.Field
 import java.util.regex.Matcher
