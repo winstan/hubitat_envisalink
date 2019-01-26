@@ -108,13 +108,13 @@ def off(){
 
 def ArmAway(){
 	ifDebug("ArmAway()")
-    def message = "0301"
+    def message = tpiCommands["ArmAway"]
     sendMsg(message)
 }
 
 def ArmHome(){
  	ifDebug("armHome()")
-    def message = "0311"
+    def message = tpiCommands["ArmHome"]
     sendMsg(message)
 }
 
@@ -126,13 +126,13 @@ def both(){
 
 def ChimeToggle(){
 	ifDebug("ChimeToggle()")
-    def message = "0711*4"
+    def message = tpiCommands["ToggleChime"]
     sendMsg(message)
 }
 
 def Disarm(){
  	ifDebug("Disarm()")
-    def message = "0401" + code
+    def message = tpiCommands["Disarm"] + code
     sendMsg(message)
 }
 
@@ -145,7 +145,7 @@ def siren(){
 }
 
 def StatusReport(){
-	sendMsg("001")
+	sendMsg(tpiCommands["StatusReport"])
 }
 
 def strobe(){
@@ -158,10 +158,10 @@ def ToggleTimeStamp(){
     def message
     if (state.timeStampOn)
     {
-    	message = "0550"
+    	message = tpiCommands["TimeStampOn"]
     }
     else{
-     	message = "0551" 
+     	message = tpiCommands["TimeStampOff"]
     }
     sendMsg(message)
 }
@@ -190,64 +190,84 @@ private parse(String message) {
     ifDebug("Parsing Incoming message: " + message)
     message = preProcessMessage(message)
 	ifDebug("${tpiResponses[message.take(3) as int]}")
-    
-    if(message.startsWith("5053")) {
-        sendLogin()
-    }
-    if(message.startsWith("502")) {
+
+
+    if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
+		if(tpiResponses[message.take(6) as int] == APIFAULT) {
+			ifDebug(APIFAULT)
+		}
         systemError(message)
     }
-     if(message.startsWith("609")) {
+	
+	if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
         zoneOpen(message)
     }
-     if(message.startsWith("610")) {
+	
+	if(tpiResponses[message.take(3) as int] == ZONERESTORED) {
          zoneClosed(message)
     }
-     if(message.startsWith("650")) {
-        sendEvent(name:"Status", value: "Ready", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
+         sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
     }
-    if(message.startsWith("651")) {
-        sendEvent(name:"Status", value: "NOT Ready", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
+         sendEvent(name:"Status", value: PARTITIONNOTREADY, displayed:false, isStateChange: true)
     }
-    if(message.startsWith("652")) {
-        sendEvent(name:"Status", value: "Armed", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONARMED) {
+        sendEvent(name:"Status", value: PARTITIONARMED, displayed:false, isStateChange: true)
 		sendEvent(name: "switch", value: "on")
         systemArmed()
     }
-    if(message.startsWith("653")) {
-        sendEvent(name:"Status", value: "Ready - Force Arming Enabled", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
+	 	sendEvent(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED, displayed:false, isStateChange: true)
     }
-    if(message.startsWith("654")) {
-        sendEvent(name:"Status", value: "In Alarm", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
+		sendEvent(name:"Status", value: PARTITIONINALARM, displayed:false, isStateChange: true)
 		alarming()
     }
-    if(message.startsWith("655")) {
-        sendEvent(name:"Status", value: "Disarmed", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
+        sendEvent(name:"Status", value: PARTITIONDISARMED, displayed:false, isStateChange: true)
 		sendEvent(name: "switch", value: "off")
         disarming()
-    }   
-    if(message.startsWith("656")) {
-        sendEvent(name:"Status", value: "Exit Delay in Progress", displayed:false, isStateChange: true)
+    }
+	
+	if(tpiResponses[message.take(3) as int] == EXITDELAY) {
+        sendEvent(name:"Status", value: EXITDELAY, displayed:false, isStateChange: true)
 		exitDelay()
     }
-    if(message.startsWith("657")) {
-        sendEvent(name:"Status", value: "Entry Delay in Progress", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == ENTRYDELAY) {
+        sendEvent(name:"Status", value: ENTRYDELAY, displayed:false, isStateChange: true)
 		entryDelay()
     }
-    if(message.startsWith("658")) {
-        sendEvent(name:"Status", value: "Keypad Lock-out", displayed:false, isStateChange: true)
+	
+	if(tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
+        sendEvent(name:"Status", value: KEYPADLOCKOUT, displayed:false, isStateChange: true)
     }
-    if(message.startsWith("5050")) {
-        log.warn "Password provided was incorrect"
-    }
-    if(message.startsWith("5051")) {
-        ifDebug("Loging Succesfull")
-    }
-    if(message.startsWith("5052")) {
-        log.warn "Time out.  You did not send password within 10 seconds"
-    }
-    if(message.startsWith("502020")) {
-        ifDebug("API Command Syntax Error")
+	
+	if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
+		if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
+			sendLogin()
+          	log.warn LOGINPROMPT
+		}
+		
+        if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
+          	log.warn PASSWORDINCORRECT
+		}
+
+		if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
+			 ifDebug(LOGINSUCCESSFUL)
+		}
+
+		if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
+			  log.warn LOGINTIMEOUT
+		}
+		
     }
 }
 
@@ -357,8 +377,6 @@ private checkTimeStamp(message){
     return message
 }
 
-
-
 private generateChksum(String cmdToSend){
 		def cmdArray = cmdToSend.toCharArray()
         def cmdSum = 0
@@ -379,7 +397,7 @@ private preProcessMessage(message){
 }
 
 def poll() {
-    return new hubitat.device.HubAction("000", hubitat.device.Protocol.TELNET)
+    return new hubitat.device.HubAction(tpiCommands["Poll"], hubitat.device.Protocol.TELNET)
 }
 
 private removeChildDevices(delete) {
@@ -453,83 +471,181 @@ private ifDebug(msg)
     27: 'API Invalid Characters in Command (no alpha characters are allowed except for checksum'
 ]
 
+@Field static final String COMMANDACCEPTED = "Command Accepted"
+@Field static final String KEYPADLEDSTATE = "Keypad LED State"
+@Field static final String COMMANDERROR = "Command Error"
+@Field static final String SYSTEMERROR = "System Error"
+@Field static final String LOGININTERACTION = "Login Interaction"
+@Field static final String LEDFLASHSTATE = "Keypad LED FLASH state"
+@Field static final String TIMEDATEBROADCAST = "Time - Date Broadcast"
+@Field static final String RINGDETECTED = "Ring Detected"
+@Field static final String INDOORTEMPBROADCAST = "Indoor Temp Broadcast"
+@Field static final String OUTDOORTEMPBROADCAST = "Outdoor Temperature Broadcast"
+@Field static final String ZONEALARM = "Zone Alarm"
+@Field static final String ZONEALARMRESTORE = "Zone Alarm RestoreD"
+@Field static final String ZONETAMPER = "Zone Tamper"
+@Field static final String ZONETAMPERRESTORE = "Zone Tamper RestoreD"
+@Field static final String ZONEFAULT = "Zone Fault"
+@Field static final String ZONEFAULTRESTORED = "Zone Fault RestoreD"
+@Field static final String ZONEOPEN = "Zone Open"
+@Field static final String ZONERESTORED = "Zone Restored"
+@Field static final String TIMERDUMP = "Envisalink Zone Timer Dump"
+@Field static final String BYPASSEDZONEBITFIELDDUMP = "Bypassed Zones Bitfield Dump"
+@Field static final String DURESSALARM = "Duress Alarm"
+@Field static final String FKEYALARM = "F Key Alarm"
+@Field static final String FKEYRESTORED = "F Key Restored"
+@Field static final String AKEYALARM = "A Key Alarm"
+@Field static final String AKEYRESTORED = "A Key Restored"
+@Field static final String PKEYALARM = "P Key Alarm"
+@Field static final String PKEYRESTORED = "P Key Restored"
+@Field static final String TWOWIRESMOKEAUXALARM = "2-Wire Smoke Aux Alarm"
+@Field static final String TWOWIRESMOKEAUXRESTORED = "2-Wire Smoke Aux Restored"
+@Field static final String PARTITIONREADY = "Ready"
+@Field static final String PARTITIONNOTREADY = "Not Ready"
+@Field static final String PARTITIONARMED = "Armed"
+@Field static final String PARTITIONNOTREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
+@Field static final String PARTITIONINALARM = "In Alarm"
+@Field static final String PARTITIONDISARMED = "Disarmed"
+@Field static final String EXITDELAY = "Exit Delay in Progress"
+@Field static final String ENTRYDELAY = "Entry Delay in Progress"
+@Field static final String KEYPADLOCKOUT = "Keypad Lock-out"
+@Field static final String PARTITIONFAILEDTOARM = "Partition Failed to Arm"
+@Field static final String PFMOUTPUT = "PFM Output is in Progress"
+@Field static final String CHIMEENABLED = "Chime Enabled"
+@Field static final String CHIMEDISABLED = "Chime Disabled"
+@Field static final String INVALIDACCESSCODE = "Invalid Access Code"
+@Field static final String FUNCTIONNOTAVAILABLE = "Function Not Available"
+@Field static final String FAILURETOARM = "Failure to Arm"
+@Field static final String PARTITIONISBUSY = "Partition is busy"
+@Field static final String SYSTEMARMINGPROGRESS = "System Arming Progress"
+@Field static final String SYSTEMININSTALLERSMODE = "System in Installers Mode"
+@Field static final String USERCLOSING = "User Closing"
+@Field static final String SPECIALCLOSING = "Special Closing"
+@Field static final String PARTIALCLOSING = "Partial Closing"
+@Field static final String USEROPENING = "User Opening"
+@Field static final String SPECIALOPENING = "Special Opening"
+@Field static final String PANELBATTERYTROUBLE = "Panel Battery Trouble"
+@Field static final String PANELBATTERYTROUBLERESTORED = "Panel Battery Trouble Restored"
+@Field static final String PANELACTROUBLE = "Panel AC Trouble"
+@Field static final String PANELACTROUBLERESTORED = "Panel AC Trouble Restored"
+@Field static final String SYSTEMBELLTROUBLE = "System Bell Trouble"
+@Field static final String SYSTEMBELLTROUBLERESTORED = "System Bell Trouble Restored"
+@Field static final String FTCTROUBLE = "FTC Trouble"
+@Field static final String FTCTROUBLERESTORED = "FTC Trouble Restored"
+@Field static final String BUFFERNEARFULL = "Buffer Near Full"
+@Field static final String GENERALSYSTEMTAMPER = "General System Tamper"
+@Field static final String GENERALSYSTEMTAMPERRESTORED = "General System Tamper Restored"
+@Field static final String TROUBLELEDON = "Trouble LED ON"
+@Field static final String TROUBLELEDOFF = "Trouble LED OFF"
+@Field static final String FIRETROUBLEALARM = "Fire Trouble Alarm"
+@Field static final String FIRETROUBLEALARMRESTORED = "Fire Trouble Alarm Restored"
+@Field static final String VERBOSETROUBLESTATUS = "Verbose Trouble Status"
+@Field static final String CODEREQUIRED = "Code Required"
+@Field static final String COMMANDOUTPUTPRESSED = "Command Output Pressed"
+@Field static final String MASTERCODEREQUIRED = "Master Code Required"
+@Field static final String INSTALLERSCODEREQUIRED = "Installers Code Required"
+@Field static final String PASSWORDINCORRECT = "Installers Code Required"
+@Field static final String LOGINSUCCESSFUL = "Installers Code Required"
+@Field static final String LOGINTIMEOUT = "Time out.  You did not send password within 10 seconds"
+@Field static final String APIFAULT = "API Command Syntax Error"
+@Field static final String LOGINPROMPT = "Send Login"
+
+
 @Field final Map 	tpiResponses = [
-    500: "Command accepted",
-    501: "Command Error",
-    502: "System Error",
-    505: "Login Interaction",
-    510: "Keypad LED State - partition 1",
-    511: "Keypad LED FLASH state - partition 1",
-    550: "Time - Date Broadcast",
-    560: "Ring Detected",
-    561: "Indoor Temp Broadcast",
-    562: "Outdoor Temperature Broadcast",
-    601: "Zone Alarm",
-    602: "Zone Alarm Restore",
-    603: "Zone Tamper",
-	604: "Zone Tamper Restore",
-    605: "Zone Fault",
-    606: "Zone Fault Restore",
-    609: "Zone Open",
-    610: "Zone Restored",
-    615: "Envisalink Zone Timer Dump",
-    616: "Byp[assed Zones Bitfield Dump",
-    620: "Duress Alarm",
-    621: "F Key Alarm",
-    622: "F Key Restored",
-    623: "A Key Alarm",
-    624: "A Key Restore",
-    625: "P Key Alarm",
-    626: "P Key Restore",
-    631: "2-Wire Smoke Aux Alarm",
-    632: "2-Wire Smoke Aux Restore",
-    650: "Partition Ready",
-    651: "Partition NOT Ready",
-    652: "Partition Armed",
-    653: "Partition Ready - Force Arming Enabled",
-    654: "Partition In Alarm",
-    655: "Partition Disarmed",
-    656: "Exit Delay in Progress",
-   	657: "Entry Delay in Progress",
-    658: "Keypad Lock-out",
-    659: "Partition Failed to Arm",
-    660: "PFM Output is in Progress",
-   	663: "Chime Enabled",
-    664: "Chime Disabled",
-    670: "Invalid Access Code",
-    671: "Function Not Available",
-    672: "Failure to Arm",
-    673: "Partition is busy",
-    674: "Systemn Arming Progress",
-    680: "System in installers Mode",
-    700: "User Closing",
-    701: "Special Closing",
-    702: "Partial Closing",
-   	750: "User Opening",
-    751: "Special Opening",
-    800: "Panel Battery Trouble",
-    801: "Panel Battery Trouble Restore",
-    802: "Panel AC Trouble",
-   	803: "Panel AC Restore",
-    806: "System Bell Trouble",
-    807: "System Bell Trouble Restore",
-    814: "FTC Trouble",
-    815: "FTC Trouble Restore",
-    816: "Buffer Near Full",
-    829: "General System Tamper",
-    830: "General System Tamper Restore",
-    840: "Trouble LED ON",
-    841: "Trouble LED OFF",
-    842: "Fire Trouble Alarm",
-    843: "Fire Trouble Alarm Restore",
-    849: "Verbose Trouble Status",
-    900: "Code Required",
-    912: "Command Output Pressed",
-    921: "Master Code Required",
-    922: "Installers Code Required"
+    500: COMMANDACCEPTED,
+    501: COMMANDERROR,
+    502: SYSTEMERROR,
+	502020: APIFAULT,
+    505: LOGININTERACTION,
+	5050: PASSWORDINCORRECT,
+	5051: LOGINSUCCESSFUL,
+	5052: LOGINTIMEOUT,
+	5053: LOGINPROMPT,
+    510: KEYPADLEDSTATE,
+    511: LEDFLASHSTATE,
+    550: TIMEDATEBROADCAST,
+    560: RINGDETECTED,
+    561: INDOORTEMPBROADCAST,
+    562: OUTDOORTEMPBROADCAST,
+    601: ZONEALARM,
+    602: ZONEALARMRESTORE,
+    603: ZONETAMPER,
+	604: ZONETAMPERRESTORE,
+    605: ZONEFAULT,
+    606: ZONEFAULTRESTORED,
+    609: ZONEOPEN,
+    610: ZONERESTORED,
+    615: TIMERDUMP,
+    616: BYPASSEDZONEBITFIELDDUMP,
+    620: DURESSALARM,
+    621: FKEYALARM,
+    622: FKEYRESTORED,
+    623: AKEYALARM,
+    624: AKEYRESTORED,
+    625: PKEYALARM,
+    626: PKEYRESTORED,
+    631: TWOWIRESMOKEAUXALARM,
+    632: TWOWIRESMOKEAUXRESTORED,
+    650: PARTITIONREADY,
+    651: PARTITIONNOTREADY,
+    652: PARTITIONARMED,
+    653: PARTITIONNOTREADYFORCEARMINGENABLED,
+    654: PARTITIONINALARM,
+    655: PARTITIONDISARMED,
+    656: EXITDELAY,
+   	657: ENTRYDELAY,
+    658: KEYPADLOCKOUT,
+    659: PARTITIONFAILEDTOARM,
+    660: PFMOUTPUT,
+   	663: CHIMEENABLED,
+    664: CHIMEDISABLED,
+    670: INVALIDACCESSCODE,
+    671: FUNCTIONNOTAVAILABLE,
+    672: FAILURETOARM,
+    673: PARTITIONISBUSY,
+    674: SYSTEMARMINGPROGRESS,
+    680: SYSTEMININSTALLERSMODE,
+    700: USERCLOSING,
+    701: SPECIALCLOSING,
+    702: PARTIALCLOSING,
+   	750: USEROPENING,
+    751: SPECIALOPENING,
+    800: PANELBATTERYTROUBLE,
+    801: PANELBATTERYTROUBLERESTORED,
+    802: PANELACTROUBLE,
+   	803: PANELACTROUBLERESTORED,
+    806: SYSTEMBELLTROUBLE,
+    807: SYSTEMBELLTROUBLERESTORED,
+    814: FTCTROUBLE,
+    815: FTCTROUBLERESTORED,
+    816: BUFFERNEARFULL,
+    829: GENERALSYSTEMTAMPER,
+    830: GENERALSYSTEMTAMPERRESTORED,
+    840: TROUBLELEDON,
+    841: TROUBLELEDOFF,
+    842: FIRETROUBLEALARM,
+    843: FIRETROUBLEALARMRESTORED,
+    849: VERBOSETROUBLESTATUS,
+    900: CODEREQUIRED,
+    912: COMMANDOUTPUTPRESSED,
+    921: MASTERCODEREQUIRED,
+    922: INSTALLERSCODEREQUIRED
+]
+@Field final Map	tpiCommands = [
+		Poll: "000",	
+		TimeStampOn: "0550",
+		TimeStampOff: "0551",
+		StatusReport: "001",
+		Disarm: "0401",
+		ToggleChime: "0711*4",
+		ArmHome: "0311",
+		ArmAway: "0301"
 ]
 
 /***********************************************************************************************************************
+* Version: 0.2.0
+* 	Better response and Command Mapping for easy adaption
+
 * Version: 0.17.0
 *	Added TTS
 * 	Locks
