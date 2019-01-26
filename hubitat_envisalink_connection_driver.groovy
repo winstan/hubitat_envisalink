@@ -25,7 +25,9 @@
 *	See Release Notes at the bottom
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.2.0"  }
+public static String version()      {  return "v0.2.1"  }
+public static boolean isDebug() { return true }
+
 
 import groovy.transform.Field
 import java.util.regex.Matcher
@@ -403,7 +405,7 @@ private removeChildDevices(delete) {
 }
 
 private sendLogin(){
-    def cmdToSend = "005${passwd}"
+    def cmdToSend =  tpiCommands["Login"] + "${passwd}"
     def cmdArray = cmdToSend.toCharArray()
     def cmdSum = 0
     cmdArray.each { cmdSum += (int)it }
@@ -630,6 +632,7 @@ private ifDebug(msg)
     922: INSTALLERSCODEREQUIRED
 ]
 @Field final Map	tpiCommands = [
+		Login: "005",
 		Poll: "000",	
 		TimeStampOn: "0550",
 		TimeStampOff: "0551",
@@ -641,6 +644,9 @@ private ifDebug(msg)
 ]
 
 /***********************************************************************************************************************
+* Version: 0.2.1
+* 	Added Login Command to Map
+*
 * Version: 0.2.0
 * 	Better response and Command Mapping for easy adaption
 
