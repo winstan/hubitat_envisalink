@@ -554,16 +554,16 @@ def switchItArmed(){
 	ifDebug("switchItArmed")
 	ifDebug("On Delay: ${onSwitchDelayArmed}")
 	ifDebug("Off Delay: ${offSwitchDelayArmed}")
-	runIn(onSwitchDelayArmed, onSwitchesOn)
-	runIn(offSwitchDelayArmed, offSwitchesOff)
+	runIn(onSwitchDelayArmed*60, onSwitchesOn)
+	runIn(offSwitchDelayArmed*60, offSwitchesOff)
 }
 
 def switchItDisarmed(){
 	ifDebug("switchItDisarmed")
 	ifDebug("On Delay: ${offSwitchDelayDisarmed}")
 	ifDebug("Off Delay: ${onSwitchDelayDisarmed}")
-	runIn(onSwitchDelayDisarmed, onSwitchesOff)
-	runIn(offSwitchDelayDisarmed, offSwitchesOn)
+	runIn(onSwitchDelayDisarmed*60, onSwitchesOff)
+	runIn(offSwitchDelayDisarmed*60, offSwitchesOn)
 }
 
 def onSwitchesOn(){
@@ -669,6 +669,9 @@ def uninstalled() {
 
 
 /***********************************************************************************************************************
+* Version: 0.3.1
+* 	Fix dumb mistake in runin delay
+*
 * Version: 0.3.0
 * 	UI Changes
 *	Minor Fixes
