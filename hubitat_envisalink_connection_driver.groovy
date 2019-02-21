@@ -25,10 +25,6 @@
 *	See Release Notes at the bottom
 ***********************************************************************************************************************/
 
-public static String version()      {  return "v0.2.1"  }
-public static boolean isDebug() { return true }
-
-
 import groovy.transform.Field
 import java.util.regex.Matcher
 import java.util.regex.Pattern;
@@ -63,16 +59,13 @@ metadata {
 
 //general handlers
 def installed() {
-	log.warn "installed..."
+	ifDebug("installed...")
     initialize()
-    
-    
    }
 
 def updated() {
 	ifDebug("updated...")
     ifDebug("Configuring IP: ${ip}, Code: ${code}, Password: ${passwd}")
-    
 	initialize()
 }
 
@@ -83,11 +76,15 @@ def initialize() {
 		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
 		//give it a chance to start
 		pauseExecution(1000)
-		ifDebug("Telnet connection to Envisalink established")
+		
         //poll()
 	} catch(e) {
-		log.warn "initialize error: ${e.message}"
+		logError("initialize error: ${e.message}")
 	}
+}
+
+public triggerInitialize() {
+    runIn(3, "initialize")
 }
 
 def uninstalled() {
@@ -252,12 +249,15 @@ private parse(String message) {
 	
 	if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
 		if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
+			sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+			ifDebug("Connection to Envisalink established")
+			state.reTryCount = 0
 			sendLogin()
-          	log.warn LOGINPROMPT
+          	ifDebug(LOGINPROMPT)
 		}
 		
         if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
-          	log.warn PASSWORDINCORRECT
+          	logError(PASSWORDINCORRECT)
 		}
 
 		if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
@@ -265,7 +265,7 @@ private parse(String message) {
 		}
 
 		if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
-			  log.warn LOGINTIMEOUT
+			  logError(LOGINTIMEOUT)
 		}
 		
     }
@@ -313,7 +313,7 @@ def zoneClosed(message){
 def systemError(message){
     def substringCount = message.size() - 3
     message = message.substring(substringCount).take(3).replaceAll('0', '')
-    log.debug "System Error: ${message} - ${errorCodes.getAt(message)}"
+    logError("System Error: ${message} - ${errorCodes.getAt(message)}")
 }
 
 def disarming(){
@@ -321,6 +321,7 @@ def disarming(){
 		ifDebug("disarming")
 		state.armState = "disarmed"
 		parent.unlockIt()
+		parent.switchItDisarmed()
 		parent.speakDisarmed()
 
 		if (location.hsmStatus != "disarmed")
@@ -335,6 +336,7 @@ def systemArmed(){
 		ifDebug("armed")
 		state.armState = "armed"
 		parent.lockIt()
+		parent.switchItArmed()
 		parent.speakArmed()
 
 		if (location.hsmStatus == "disarmed")
@@ -431,19 +433,22 @@ def getReTry(Boolean inc){
 }
 
 def telnetStatus(String status){
-	log.warn "telnetStatus- error: ${status}"
+	logError("telnetStatus- error: ${status}")
 	if (status != "receive error: Stream is closed"){
 		getReTry(true)
-		log.error "Telnet connection dropped..."
+		logError("Telnet connection dropped...")
 		initialize()
 	} else {
-		log.warn "Telnet is restarting..."
+		logError("Telnet is restarting...")
 	}
 }
 
-private ifDebug(msg)     
-{  
+private ifDebug(msg){  
 	parent.ifDebug('Connection Driver: ' + msg)
+}
+
+private logError(msg){  
+	parent.logError('Connection Driver: ' + msg)
 }
 
 @Field Pattern timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /   
@@ -545,7 +550,7 @@ private ifDebug(msg)
 @Field static final String MASTERCODEREQUIRED = "Master Code Required"
 @Field static final String INSTALLERSCODEREQUIRED = "Installers Code Required"
 @Field static final String PASSWORDINCORRECT = "Installers Code Required"
-@Field static final String LOGINSUCCESSFUL = "Installers Code Required"
+@Field static final String LOGINSUCCESSFUL = "Login Successful"
 @Field static final String LOGINTIMEOUT = "Time out.  You did not send password within 10 seconds"
 @Field static final String APIFAULT = "API Command Syntax Error"
 @Field static final String LOGINPROMPT = "Send Login"
@@ -644,6 +649,12 @@ private ifDebug(msg)
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.0
+* 	Fixed Login Response Message
+*	Improved Connection Routine
+*	Improved Error Logging
+*	Integrations
+*
 * Version: 0.2.1
 * 	Added Login Command to Map
 *
