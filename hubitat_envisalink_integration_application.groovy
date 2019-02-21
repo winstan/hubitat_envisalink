@@ -23,8 +23,9 @@
 **************************************************************
 **********	See Release Notes at the bottom ******************
 ***********************************************************************************************************************/
+import groovy.json.JsonSlurper
+import groovy.util.XmlSlurper
 
-public static String version()      {  return "v0.2.1"  }
 
 definition(
     name: "Envisalink Integration",
@@ -39,23 +40,24 @@ definition(
 )
 
 preferences {
-	page(name: "mainPage", nextPage: "zoneMapsPage")
+	page(name: "mainPage")
     page(name: "zoneMapsPage", nextPage: "mainPage")
 	page(name: "notificationPage", nextPage: "mainPage")
 	page(name: "lockPage", nextPage: "mainPage")
+	page(name: "switchPage", nextPage: "mainPage")
     page(name: "defineZoneMap", nextPage: "zoneMapsPage")
     page(name: "editZoneMapPage", nextPage: "zoneMapsPage")
     page(name: "aboutPage", nextPage: "mainPage")
 }
-
-
 
 //App Pages/Views
 def mainPage() {
     ifDebug("Showing mainPage")
 	state.isDebug = isDebug
 	
-	return dynamicPage(name: "mainPage", title: "", install: false, uninstall: true) {
+	return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
+			showTitle()
+
         if(!state.envisalinkIntegrationInstalled && getChildDevices().size() == 0) {
             section("Define your Envisalink device") {
                 clearStateVariables()
@@ -82,6 +84,12 @@ def mainPage() {
                 href (name: "lockPage", title: "Locks", 
                 description: "Integrate Locks",
                 page: "lockPage")	
+            }
+			
+			section("<h1>Switches</h1>") {
+                href (name: "switchPage", title: "Switches", 
+                description: "Integrate Switches",
+                page: "switchPage")	
             }
 			
              state.enableHSM = enableHSM
@@ -133,10 +141,47 @@ def lockPage() {
 				paragraph "Enable Lock Integration, selected locks will lock when armed and/or unlock when disarmed"
 					input "armLocks", "capability.lock", title: "Which locks to lock when armed?", required:false, multiple:true, submitOnChange:true
 					input "disarmLocks", "capability.lock", title: "Which locks to unlock when disarmed?", required:false, multiple:true, submitOnChange:true
+					input "lockCodeLock", "capability.lock", title: "Lock for Lock Codes", required: false, multiple:false, submitOnChange:true
+					def lcText = lockCodeLock?.currentValue("lockCodes")
+					if (!lcText?.startsWith("{")) {
+						lcText = decrypt(lcText)
+					}
+					def lockCodesRaw
+					def lockCodes = []
+					if (lcText) lockCodesRaw = new JsonSlurper().parseText(lcText)
+					ifDebug("lockCodes for selected lock: ${lockCodesRaw}")
+					lockCodesRaw.each{
+						//ifDebug("lockCode ${it}")
+						def lockCodeValue = it.getValue()
+						ifDebug("lockCodeValue.name: ${lockCodeValue.name} - lockCodeValue.code: ${lockCodeValue.code}")
+						lockCodes << ["${lockCodeValue.code}": "${lockCodeValue.name}"]
+					}
+					
+					input "selectedLockCodes", 'enum', title: "Lock Codes that disarm", required: false, multiple:true, submitOnChange:true, options: lockCodes
+					ifDebug("lock codes options: ${lockCodes}")					
+					ifDebug("selected lock codes: ${selectedLockCodes}")					
+					
 			}
 	}
 }
 
+def switchPage() {
+    ifDebug("Showing switchPage")
+    
+	dynamicPage(name: "switchPage", title: none){
+        section("<h1>Switches</h1>"){
+				paragraph "Integrating Switches"
+					input "onSwitches", "capability.switch", title: "Which switches to turn On when Armed and Off when Disarmed?", required:false, multiple:true, submitOnChange:true
+					input "onSwitchDelayArmed", "number", title: "Delay On by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
+					input "onSwitchDelayDisarmed", "number", title: "Delay Off by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
+					input "offSwitches", "capability.switch", title: "Which switches to turn Off when Armed and On when Disarmed?", required:false, multiple:true, submitOnChange:true
+					input "offSwitchDelayArmed", "number", title: "Delay On by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
+					input "offSwitchDelayDisarmed", "number", title: "Delay Off by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
+					ifDebug("Switches on when Armed: ${onSwitches}")		
+					ifDebug("Switches off when Armed: ${offSwitches}")					
+			}
+	}
+}
 
 def notificationPage(){
 	dynamicPage(name: "notificationPage", title: none){
@@ -202,7 +247,7 @@ def zoneMapsPage() {
         createZone()
     }
    
-	dynamicPage(name: "zoneMapsPage", title: "", install: true, uninstall: false){
+	dynamicPage(name: "zoneMapsPage", title: "", install: false, uninstall: false){
        
         section("<h1>Zone Maps</h1>"){
             paragraph "The partition of your Envisalink Installation should be divided into Zones.  Should the Zone be fitted with a dry contact, you can map the Zone to a Virtual Contact component device in Envisalink Integration "
@@ -330,36 +375,14 @@ def editZone(){
     
 }
 
-private ifDebug(msg)     
-{  
-    if (msg && state.isDebug)  log.debug 'Envisalink Integration: ' + msg  
-}
-
-//General App Events
-def installed() {
-    state.envisalinkIntegrationInstalled = true
-	initialize()
-}
-
-def updated() {
-	log.info "updated"
-	unsubscribe()
-	initialize()
-}
-
-def initialize() {
-	log.info "initialize"
-	unsubscribe()
-    state.creatingZone = false;
-    subscribe(location, "hsmStatus", statusHandler)
-}
-
-def uninstalled() {
-	removeChildDevices(getChildDevices())
-}
-
+//events and actions
 def statusHandler(evt) {
     log.info "HSM Alert: $evt.value"
+	sendEvent(name: "HSM Event", value: evt.value)
+
+	if (evt.value == state.lastHSMEvent) return
+	state.lastHSMEvent = evt.value
+	
 	def lock
 	if (!lock){
 		lock = true
@@ -478,7 +501,6 @@ def speakExitDelay(){
 	} 
 }
 
-
 def speakAlarm(){
 	if (!alarmBool) return
 	if (alarmText != ""){
@@ -487,6 +509,9 @@ def speakAlarm(){
 }
 
 private speakIt(str)	{
+	if (state.lastPhaseSpoken == str) return
+	
+	state.lastPhaseSpoken = str;
 	ifDebug("TTS: $str")
 	if (state.speaking)		{
 		ifDebug("Already Speaking")
@@ -507,6 +532,10 @@ private speakIt(str)	{
 	state.speaking = false
 }
 
+private speakRetry(data)	{
+	if (data.str)		speakIt(data.str);
+}
+
 private lockIt(){
 	ifDebug("Lock")
 	if (!armLocks) return
@@ -521,20 +550,132 @@ private unlockIt(){
 	disarmLocks.unlock()
 }	
 
+def switchItArmed(){
+	ifDebug("switchItArmed")
+	ifDebug("On Delay: ${onSwitchDelayArmed}")
+	ifDebug("Off Delay: ${offSwitchDelayArmed}")
+	runIn(onSwitchDelayArmed, onSwitchesOn)
+	runIn(offSwitchDelayArmed, offSwitchesOff)
+}
 
-def speakRetry(data)	{
-	if (data.str)		speakIt(data.str);
+def switchItDisarmed(){
+	ifDebug("switchItDisarmed")
+	ifDebug("On Delay: ${offSwitchDelayDisarmed}")
+	ifDebug("Off Delay: ${onSwitchDelayDisarmed}")
+	runIn(onSwitchDelayDisarmed, onSwitchesOff)
+	runIn(offSwitchDelayDisarmed, offSwitchesOn)
+}
+
+def onSwitchesOn(){
+	if (!onSwitches) return
+	ifDebug("Armed Switches On")
+	onSwitches.on()
+	
+}
+
+def onSwitchesOff(){
+	if (!onSwitches) return
+	ifDebug("Armed Switches Off")
+	onSwitches.off()
+	
+}
+
+def offSwitchesOn(){
+	if (!offSwitches) return
+	ifDebug("Disarmed Switches On")
+	offSwitches.on()
+	
+}
+
+def offSwitchesOff(){
+	if (!offSwitches) return
+	ifDebug("Disarmed Switches Off")
+	offSwitches.off()
+	
+}
+
+
+
+def lockUseHandler(evt){
+	log.warn "lockUseHandler ${evt.displayName}"
+    def data = evt.data
+    def isEncrypted = false
+    if (data && !data[0].startsWith("{")) {
+       ifDebug("encr data:${data}")
+       data = decrypt(data)
+       isEncrypted = true
+    }
+	
+	if (data){
+		ifDebug("lockUseHandler- device:${evt.displayName}, value:${evt.value}, data:${data}, type:${evt.type}, wasEncrypted:${isEncrypted}")
+		def dataJson = new JsonSlurper().parseText(data)
+		ifDebug("dataJson - ${dataJson}")
+		dataJson.each{
+			ifDebug(it)
+			def lockCodeValue = it.getValue()
+			ifDebug(lockCodeValue)
+			ifDebug(lockCodeValue.code)
+			def foundCode = selectedLockCodes.find{it == lockCodeValue.code}
+			if (foundCode){
+				ifDebug("Found Lock Code")
+				getChildDevice(state.EnvisalinkDNI).Disarm()
+			}	
+    	}
+	}
+    
 }
 
 private removeChildDevices(delete) {
 	delete.each {deleteChildDevice(it.deviceNetworkId)}
 }
 
+def showTitle(){
+	state.version = "0.3.0"
+	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
+}
+
+private ifDebug(msg){  
+    if (msg && state.isDebug)  log.debug 'Envisalink Integration: ' + msg  
+}
+
+private logError(msg){  
+    if (msg)  log.error 'Envisalink Integration: ' + msg  
+}
+
+//General App Events
+def installed() {
+    state.envisalinkIntegrationInstalled = true
+	initialize()
+}
+
+def updated() {
+	log.info "updated"
+	initialize()
+}
+
+def initialize() {
+	log.info "initialize"
+	sendEvent(name: "Initialized", value: "online")
+	unsubscribe()
+    state.creatingZone = false;
+	log.info "subscribing"
+    subscribe(location, "hsmStatus", statusHandler)
+	subscribe(lockCodeLock,"lock",lockUseHandler)
+}
+
+def uninstalled() {
+	removeChildDevices(getChildDevices())
+}
+
 
 /***********************************************************************************************************************
-/***********************************************************************************************************************
-* Version: 0.2.1
-* 	Spelling mistake
+* Version: 0.3.0
+* 	UI Changes
+*	Minor Fixes
+*	Lock Code Integration
+*	Switch Integration
+*	Debouncing
+*	Improved Error Logging
 *
 * Version: 0.2.0
 * 	UI Changes
