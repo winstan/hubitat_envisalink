@@ -177,8 +177,11 @@ def switchPage() {
 					input "offSwitches", "capability.switch", title: "Which switches to turn Off when Armed and On when Disarmed?", required:false, multiple:true, submitOnChange:true
 					input "offSwitchDelayArmed", "number", title: "Delay On by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
 					input "offSwitchDelayDisarmed", "number", title: "Delay Off by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
+					input "offNoOnSwitches", "capability.switch", title: "Which switches to turn Off when Armed only?", required:false, multiple:true, submitOnChange:true
+					input "offNoOnSwitchDelayArmed", "number", title: "Delay Off by how many minutes?", required: true, multiple: false, defaultValue: 0, range: "0..120", submitOnChange: true
 					ifDebug("Switches on when Armed: ${onSwitches}")		
-					ifDebug("Switches off when Armed: ${offSwitches}")					
+					ifDebug("Switches off when Armed: ${offSwitches}")				
+			
 			}
 	}
 }
@@ -556,6 +559,7 @@ def switchItArmed(){
 	ifDebug("Off Delay: ${offSwitchDelayArmed}")
 	runIn(onSwitchDelayArmed*60, onSwitchesOn)
 	runIn(offSwitchDelayArmed*60, offSwitchesOff)
+	runIn(offNoOnSwitchDelayArmed*60, offNoOnSwitchesOff)
 }
 
 def switchItDisarmed(){
@@ -594,6 +598,12 @@ def offSwitchesOff(){
 	
 }
 
+def offNoOnSwitchesOff(){
+	if (!offNoOnSwitches) return
+	ifDebug("Disarmed Switches Off [Only]")
+	offNoOnSwitches.off()
+}
+
 
 
 def lockUseHandler(evt){
@@ -630,7 +640,7 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = "0.3.0"
+	state.version = "0.3.2"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
@@ -669,6 +679,9 @@ def uninstalled() {
 
 
 /***********************************************************************************************************************
+* Version: 0.3.2
+* 	Add switch off on disarm with no on with arm
+*
 * Version: 0.3.1
 * 	Fix dumb mistake in runin delay
 *
