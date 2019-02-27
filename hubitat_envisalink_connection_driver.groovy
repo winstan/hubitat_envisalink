@@ -206,6 +206,8 @@ private parse(String message) {
 	
 	if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
          sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
+		sendEvent(name: "switch", value: "off")
+		state.armState = "disarmed"
     }
 	
 	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
@@ -649,6 +651,9 @@ private logError(msg){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.2
+*	Fixed disarm state variable getting out of sync because of reboots or crashed hub during events.
+*
 * Version: 0.3.0
 * 	Fixed Login Response Message
 *	Improved Connection Routine
