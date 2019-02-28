@@ -55,11 +55,10 @@ def mainPage() {
     ifDebug("Showing mainPage")
 	state.isDebug = isDebug
 	
-	return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
+	 if(!state.envisalinkIntegrationInstalled && getChildDevices().size() == 0) {
+		 return dynamicPage(name: "mainPage", title: "", install: false, uninstall: true, nextPage: "zoneMapsPage") {
 			showTitle()
-
-        if(!state.envisalinkIntegrationInstalled && getChildDevices().size() == 0) {
-            section("Define your Envisalink device") {
+ 			section("Define your Envisalink device") {
                 clearStateVariables()
             	input "envisalinkName", "text", title: "Envisalink Name", required: true, multiple: false, defaultValue: "Envisalink", submitOnChange: false
                 input "envisalinkIP", "text", title: "Envisalink IP Address", required: true, multiple: false, defaultValue: "", submitOnChange: false
@@ -67,7 +66,9 @@ def mainPage() {
                 input "envisalinkCode", "text", title: "Envisalink Disarm Code", required: true, multiple: false, defaultValue: "", submitOnChange: false
             }
         }
-        else {
+	 } else {
+		 return dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
+			showTitle()
 			section("<h1>Zone Mapping</h1>") {
                 href (name: "zoneMapsPage", title: "Zones", 
                 description: "Create Virtual Contacts and Map them to Existing Zones in your Envisalink setup",
@@ -97,23 +98,17 @@ def mainPage() {
                     paragraph "Enabling Hubitat Safety Monitor Integration will tie your Envisalink state to the state of HSM.  Your Envisalink will receive the Arm Away, Arm Home and Disarm commands based on the HSM state. " 
                         input "enableHSM", "bool", title: "Enable HSM Integration", required: false, multiple: false, defaultValue: false, submitOnChange: true
                }
-            
-			
-        
-			
-            
-             
+       
+			 section("<br/><br/>") {
+				href (name: "aboutPage", title: "About", 
+					  description: "Find out more about Envisalink Integration",
+					  page: "aboutPage")	
+			}
+			section("") {
+				input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
+			}
         }
-        section("<br/><br/>") {
-            href (name: "aboutPage", title: "About", 
-                  description: "Find out more about Envisalink Integration",
-                  page: "aboutPage")	
-        }
-        section("") {
-            input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
-        }
-
-    }
+	 }
 }
 
 def aboutPage() {
@@ -604,8 +599,6 @@ def offNoOnSwitchesOff(){
 	offNoOnSwitches.off()
 }
 
-
-
 def lockUseHandler(evt){
 	log.warn "lockUseHandler ${evt.displayName}"
     def data = evt.data
@@ -679,6 +672,9 @@ def uninstalled() {
 
 
 /***********************************************************************************************************************
+* Version: 0.3.3
+* 	Fix installation process
+*
 * Version: 0.3.2
 * 	Add switch off on disarm with no on with arm
 *
