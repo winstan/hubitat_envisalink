@@ -26,8 +26,7 @@
 ***********************************************************************************************************************/
 
 import groovy.transform.Field
-import java.util.regex.Matcher
-import java.util.regex.Pattern;
+
 
     
 metadata {
@@ -70,22 +69,9 @@ def updated() {
 }
 
 def initialize() {
-    telnetClose() 
-	try {
-		//open telnet connection
-		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
-		//give it a chance to start
-		pauseExecution(1000)
-		
-        //poll()
-	} catch(e) {
-		logError("initialize error: ${e.message}")
-	}
+   runIn(3, "telnetConnection")
 }
 
-public triggerInitialize() {
-    runIn(3, "initialize")
-}
 
 def uninstalled() {
     telnetClose() 
@@ -368,7 +354,7 @@ def alarming(){
 
 //helpers
 private checkTimeStamp(message){
-    if (timeStampPattern.matcher(message)){
+    if (message ==~ timeStampPattern){
         ifDebug("Time Stamp Found")
         	state.timeStampOn = true;
         	message = message.replaceAll(timeStampPattern, "")
@@ -434,6 +420,21 @@ def getReTry(Boolean inc){
 	return reTry
 }
 
+
+def telnetConnection(){
+ 	telnetClose() 
+	try {
+		//open telnet connection
+		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
+		//give it a chance to start
+		pauseExecution(1000)
+		
+        //poll()
+	} catch(e) {
+		logError("initialize error: ${e.message}")
+	}	
+}
+
 def telnetStatus(String status){
 	logError("telnetStatus- error: ${status}")
 	if (status != "receive error: Stream is closed"){
@@ -453,7 +454,7 @@ private logError(msg){
 	parent.logError('Connection Driver: ' + msg)
 }
 
-@Field Pattern timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /   
+@Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /  
 
 @Field final Map 	errorCodes = [
     0: 	'No Error', 
@@ -651,6 +652,9 @@ private logError(msg){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.3
+*	Hubitat suggested changes, removing regex libraries
+*
 * Version: 0.3.2
 *	Fixed disarm state variable getting out of sync because of reboots or crashed hub during events.
 *
