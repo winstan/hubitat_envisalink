@@ -36,6 +36,7 @@ metadata {
 		capability "Alarm"
         capability "Switch"
         capability "Actuator"
+		capability "Polling"
         command "sendMsg", ["String"]
         command "StatusReport"
         command "ArmAway"
@@ -44,6 +45,7 @@ metadata {
         command "Disarm"
         command "ChimeToggle"
         command "ToggleTimeStamp"
+		command "poll"
         
         
         attribute   "Status", "string"
@@ -53,6 +55,14 @@ metadata {
 		input("ip", "text", title: "IP Address", description: "ip", required: true)
         input("passwd", "text", title: "Password", description: "password", required: true)
         input("code", "text", title: "Code", description: "code", required: true)
+		def pollRate = [:]
+		pollRate << ["0" : "Disabled"]
+		pollRate << ["1" : "Poll every minute"]
+		pollRate << ["5" : "Poll every 5 minutes"]
+		pollRate << ["10" : "Poll every 10 minutes"]
+		pollRate << ["15" : "Poll every 15 minutes"]
+		pollRate << ["30" : "Poll every 30 minutes (not recommended)"]
+		input ("poll_Rate", "enum", title: "Device Poll Rate", options: pollRate, defaultValue: 0)
 	}
 }
 
@@ -66,10 +76,36 @@ def updated() {
 	ifDebug("updated...")
     ifDebug("Configuring IP: ${ip}, Code: ${code}, Password: ${passwd}")
 	initialize()
+	unschedule()
+	switch(poll_Rate) {
+		case "0" :
+		    ifDebug("Envisalink Polling is Disabled")
+			break
+		case "1" :
+			runEvery1Minute(poll)
+		    ifDebug("Poll Rate set at 1 minute")
+			break
+		case "5" :
+			runEvery5Minutes(poll)
+		    ifDebug("Poll Rate set at 5 minutes")
+			break
+		case "10" :
+			runEvery10Minutes(poll)
+		    ifDebug("Poll Rate set at 10 minutes")
+			break
+		case "15" :
+			runEvery15Minutes(poll)
+		    ifDebug("Poll Rate set at 15 minutes")
+			break
+		case "30" :
+			runEvery30Minutes(poll)
+		    ifDebug("Poll Rate set at 30 minutes")
+			break
+	}
 }
 
 def initialize() {
-   runIn(3, "telnetConnection")
+   runIn(5, "telnetConnection")
 }
 
 
@@ -90,7 +126,7 @@ def off(){
 }
 
 def ArmAway(){
-	ifDebug("ArmAway()")
+	ifDebug("armAway()")
     def message = tpiCommands["ArmAway"]
     sendMsg(message)
 }
@@ -125,6 +161,8 @@ def SoundAlarm(){
 
 def siren(){
 	ifDebug("Siren : NOT IMPLEMENTED")
+										 
+					
 }
 
 def StatusReport(){
@@ -159,7 +197,7 @@ def createZone(zoneInfo){
     } else {
      	addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])   
         newDevice = getChildDevice(zoneInfo.deviceNetworkId)
-        newDevice.updateSetting("autoInactive",[type:"enum", value:0])
+        newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
     }
     
 }
@@ -173,7 +211,6 @@ private parse(String message) {
     ifDebug("Parsing Incoming message: " + message)
     message = preProcessMessage(message)
 	ifDebug("${tpiResponses[message.take(3) as int]}")
-
 
     if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
 		if(tpiResponses[message.take(6) as int] == APIFAULT) {
@@ -191,19 +228,13 @@ private parse(String message) {
     }
 	
 	if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
-         sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
+        sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
 		sendEvent(name: "switch", value: "off")
 		state.armState = "disarmed"
     }
 	
 	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
          sendEvent(name:"Status", value: PARTITIONNOTREADY, displayed:false, isStateChange: true)
-    }
-	
-	if(tpiResponses[message.take(3) as int] == PARTITIONARMED) {
-        sendEvent(name:"Status", value: PARTITIONARMED, displayed:false, isStateChange: true)
-		sendEvent(name: "switch", value: "on")
-        systemArmed()
     }
 	
 	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
@@ -250,6 +281,7 @@ private parse(String message) {
 
 		if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
 			 ifDebug(LOGINSUCCESSFUL)
+			
 		}
 
 		if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
@@ -257,6 +289,21 @@ private parse(String message) {
 		}
 		
     }
+	
+	if(tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
+		
+		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
+    	    sendEvent(name:"Status", value: PARTITIONARMEDAWAY, displayed:false, isStateChange: true)
+			sendEvent(name: "switch", value: "on")
+        	systemArmed()
+	    }
+	
+		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
+        	sendEvent(name:"Status", value: PARTITIONARMEDHOME, displayed:false, isStateChange: true)
+			sendEvent(name: "switch", value: "on")
+        	systemArmedHome()
+    	}
+	}
 }
 
 def zoneOpen(message){
@@ -320,9 +367,24 @@ def disarming(){
 }
 
 def systemArmed(){
-	if (state.armState != "armed"){
-		ifDebug("armed")
-		state.armState = "armed"
+	if (state.armState != "away_armed"){
+		ifDebug("Away Armed")
+		state.armState = "away_armed"
+		parent.lockIt()
+		parent.switchItArmed()
+		parent.speakArmed()
+
+		if (location.hsmStatus == "disarmed")
+		{
+			sendLocationEvent(name: "hsmSetArm", value: "armAway")
+		}
+	}
+}
+
+def systemArmedHome(){
+	if (state.armState != "home_armed"){
+		ifDebug("Home Armed")
+		state.armState = "home_armed"
 		parent.lockIt()
 		parent.switchItArmed()
 		parent.speakArmed()
@@ -333,6 +395,7 @@ def systemArmed(){
 		}
 	}
 }
+
 
 def entryDelay(){
 	 ifDebug("entryDelay")
@@ -387,7 +450,12 @@ private preProcessMessage(message){
 }
 
 def poll() {
-    return new hubitat.device.HubAction(tpiCommands["Poll"], hubitat.device.Protocol.TELNET)
+	ifDebug("Polling...")
+	def message = tpiCommands["Poll"]
+    sendMsg(message)
+		
+    //return new hubitat.device.HubAction(tpiCommands["Poll"], hubitat.device.Protocol.TELNET)
+	
 }
 
 private removeChildDevices(delete) {
@@ -428,8 +496,8 @@ def telnetConnection(){
 		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
 		//give it a chance to start
 		pauseExecution(1000)
-		
-        //poll()
+		//poll()
+        StatusReport()
 	} catch(e) {
 		logError("initialize error: ${e.message}")
 	}	
@@ -490,7 +558,23 @@ private logError(msg){
 @Field static final String INDOORTEMPBROADCAST = "Indoor Temp Broadcast"
 @Field static final String OUTDOORTEMPBROADCAST = "Outdoor Temperature Broadcast"
 @Field static final String ZONEALARM = "Zone Alarm"
-@Field static final String ZONEALARMRESTORE = "Zone Alarm RestoreD"
+@Field static final String ZONE1ALARM = "Zone 1 Alarm"
+@Field static final String ZONE2ALARM = "Zone 2 Alarm"
+@Field static final String ZONE3ALARM = "Zone 3 Alarm"
+@Field static final String ZONE4ALARM = "Zone 4 Alarm"
+@Field static final String ZONE5ALARM = "Zone 5 Alarm"
+@Field static final String ZONE6ALARM = "Zone 6 Alarm"
+@Field static final String ZONE7ALARM = "Zone 7 Alarm"
+@Field static final String ZONE8ALARM = "Zone 8 Alarm"
+@Field static final String ZONEALARMRESTORE = "Zone Alarm Restored"
+@Field static final String ZONE1ALARMRESTORE = "Zone 1 Alarm Restored"
+@Field static final String ZONE2ALARMRESTORE = "Zone 2 Alarm Restored"
+@Field static final String ZONE3ALARMRESTORE = "Zone 3 Alarm Restored"
+@Field static final String ZONE4ALARMRESTORE = "Zone 4 Alarm Restored"
+@Field static final String ZONE5ALARMRESTORE = "Zone 5 Alarm Restored"
+@Field static final String ZONE6ALARMRESTORE = "Zone 6 Alarm Restored"
+@Field static final String ZONE7ALARMRESTORE = "Zone 7 Alarm Restored"
+@Field static final String ZONE8ALARMRESTORE = "Zone 8 Alarm Restored"
 @Field static final String ZONETAMPER = "Zone Tamper"
 @Field static final String ZONETAMPERRESTORE = "Zone Tamper RestoreD"
 @Field static final String ZONEFAULT = "Zone Fault"
@@ -500,17 +584,19 @@ private logError(msg){
 @Field static final String TIMERDUMP = "Envisalink Zone Timer Dump"
 @Field static final String BYPASSEDZONEBITFIELDDUMP = "Bypassed Zones Bitfield Dump"
 @Field static final String DURESSALARM = "Duress Alarm"
-@Field static final String FKEYALARM = "F Key Alarm"
-@Field static final String FKEYRESTORED = "F Key Restored"
-@Field static final String AKEYALARM = "A Key Alarm"
-@Field static final String AKEYRESTORED = "A Key Restored"
-@Field static final String PKEYALARM = "P Key Alarm"
-@Field static final String PKEYRESTORED = "P Key Restored"
+@Field static final String FKEYALARM = "Fire Key Alarm"
+@Field static final String FKEYRESTORED = "Fire Key Restored"
+@Field static final String AKEYALARM = "Aux Key Alarm"
+@Field static final String AKEYRESTORED = "Aux Key Restored"
+@Field static final String PKEYALARM = "Panic Key Alarm"
+@Field static final String PKEYRESTORED = "Panic Key Restored"
 @Field static final String TWOWIRESMOKEAUXALARM = "2-Wire Smoke Aux Alarm"
 @Field static final String TWOWIRESMOKEAUXRESTORED = "2-Wire Smoke Aux Restored"
 @Field static final String PARTITIONREADY = "Ready"
 @Field static final String PARTITIONNOTREADY = "Not Ready"
-@Field static final String PARTITIONARMED = "Armed"
+@Field static final String PARTITIONARMEDSTATE = "Armed State"
+@Field static final String PARTITIONARMEDAWAY = "Away Armed"
+@Field static final String PARTITIONARMEDHOME = "Home Armed"
 @Field static final String PARTITIONNOTREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
 @Field static final String PARTITIONINALARM = "In Alarm"
 @Field static final String PARTITIONDISARMED = "Disarmed"
@@ -576,7 +662,23 @@ private logError(msg){
     561: INDOORTEMPBROADCAST,
     562: OUTDOORTEMPBROADCAST,
     601: ZONEALARM,
+	6011001: ZONE1ALARM,
+	6011002: ZONE2ALARM,
+	6011003: ZONE3ALARM,
+	6011004: ZONE4ALARM,
+	6011005: ZONE5ALARM,
+	6011006: ZONE6ALARM,
+	6011007: ZONE7ALARM,
+	6011008: ZONE8ALARM,
     602: ZONEALARMRESTORE,
+	6021001: ZONE1ALARMRESTORE,
+	6021002: ZONE2ALARMRESTORE,
+	6021003: ZONE3ALARMRESTORE,
+	6021004: ZONE4ALARMRESTORE,
+	6021005: ZONE5ALARMRESTORE,
+	6021006: ZONE6ALARMRESTORE,
+	6021007: ZONE7ALARMRESTORE,
+	6021008: ZONE8ALARMRESTORE,
     603: ZONETAMPER,
 	604: ZONETAMPERRESTORE,
     605: ZONEFAULT,
@@ -596,7 +698,9 @@ private logError(msg){
     632: TWOWIRESMOKEAUXRESTORED,
     650: PARTITIONREADY,
     651: PARTITIONNOTREADY,
-    652: PARTITIONARMED,
+	652: PARTITIONARMEDSTATE,
+    65210: PARTITIONARMEDAWAY,
+	65211: PARTITIONARMEDHOME,
     653: PARTITIONNOTREADYFORCEARMINGENABLED,
     654: PARTITIONINALARM,
     655: PARTITIONDISARMED,
@@ -648,10 +752,21 @@ private logError(msg){
 		Disarm: "0401",
 		ToggleChime: "0711*4",
 		ArmHome: "0311",
-		ArmAway: "0301"
+		ArmAway: "0301",
+	    ArmwAwayZeroEntry: "0302",
+	    PanicFire: "0601",
+	    PanicAmbulance: "0602",
+	    PanicPolice: "0603"
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.4
+*   Added Armed Away and Armed Home States, including HSM instructions
+*   Added Polling Rate - Default State is Disabled
+*   If polling is enabled, it should recover from an Envisalink reboot within two time intervals
+*   Added Status Report on initialize to re-sync Alarm State
+*   Fixed autoInactive value from 0 to disabled, to resolve motion sensor errors
+*
 * Version: 0.3.3
 *	Hubitat suggested changes, removing regex libraries
 *
