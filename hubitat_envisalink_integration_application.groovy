@@ -394,7 +394,7 @@ def statusHandler(evt) {
 				switch(evt.value){
 					case "armedAway":
 					ifDebug("Sending Arm Away")
-						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Away Armed")
 						{
 							speakArmingAway()
 							getChildDevice(state.EnvisalinkDNI).ArmAway()
@@ -402,7 +402,7 @@ def statusHandler(evt) {
 						break
 					case "armedHome":
 					ifDebug("Sending Arm Home")
-						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
+						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Home Armed")
 						{
 							speakArmingHome()
 							getChildDevice(state.EnvisalinkDNI).ArmHome()
@@ -672,6 +672,9 @@ def uninstalled() {
 
 
 /***********************************************************************************************************************
+* Version: 0.3.4
+* 	Home and Away Armed states
+*
 * Version: 0.3.3
 * 	Fix installation process
 *
