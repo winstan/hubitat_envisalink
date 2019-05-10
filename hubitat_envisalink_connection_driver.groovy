@@ -20,7 +20,7 @@
 *  Name: Envisalink Connection
 *  https://github.com/omayhemo/hubitat_envisalink
 *
-*	Special Thanks to Chuck Swchwer, Mike Maxwell and cuboy29 
+*	Special Thanks to Chuck Swchwer, Mike Maxwell and cuboy29
 *	and to the entire Hubitat staff, you guys are killing it!
 *	See Release Notes at the bottom
 ***********************************************************************************************************************/
@@ -28,7 +28,7 @@
 import groovy.transform.Field
 
 
-    
+
 metadata {
 	definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 		capability "Initialize"
@@ -46,8 +46,8 @@ metadata {
         command "ChimeToggle"
         command "ToggleTimeStamp"
 		command "poll"
-        
-        
+
+
         attribute   "Status", "string"
 	}
 
@@ -110,7 +110,7 @@ def initialize() {
 
 
 def uninstalled() {
-    telnetClose() 
+    telnetClose()
 	removeChildDevices(getChildDevices())
 }
 
@@ -161,8 +161,8 @@ def SoundAlarm(){
 
 def siren(){
 	ifDebug("Siren : NOT IMPLEMENTED")
-										 
-					
+
+
 }
 
 def StatusReport(){
@@ -170,7 +170,7 @@ def StatusReport(){
 }
 
 def strobe(){
- 	ifDebug("Stobe : NOT IMPLEMENTED") 
+ 	ifDebug("Stobe : NOT IMPLEMENTED")
     //if allDevices =  getChildDevices()
 }
 
@@ -195,11 +195,11 @@ def createZone(zoneInfo){
     {
     	addChildDevice("hubitat", "Virtual Contact Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])
     } else {
-     	addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])   
+     	addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])
         newDevice = getChildDevice(zoneInfo.deviceNetworkId)
         newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
     }
-    
+
 }
 
 def removeZone(zoneInfo){
@@ -218,54 +218,54 @@ private parse(String message) {
 		}
         systemError(message)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
         zoneOpen(message)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == ZONERESTORED) {
          zoneClosed(message)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
         sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
 		sendEvent(name: "switch", value: "off")
 		state.armState = "disarmed"
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
          sendEvent(name:"Status", value: PARTITIONNOTREADY, displayed:false, isStateChange: true)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
 	 	sendEvent(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED, displayed:false, isStateChange: true)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
 		sendEvent(name:"Status", value: PARTITIONINALARM, displayed:false, isStateChange: true)
 		alarming()
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
         sendEvent(name:"Status", value: PARTITIONDISARMED, displayed:false, isStateChange: true)
 		sendEvent(name: "switch", value: "off")
         disarming()
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == EXITDELAY) {
         sendEvent(name:"Status", value: EXITDELAY, displayed:false, isStateChange: true)
 		exitDelay()
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == ENTRYDELAY) {
         sendEvent(name:"Status", value: ENTRYDELAY, displayed:false, isStateChange: true)
 		entryDelay()
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
         sendEvent(name:"Status", value: KEYPADLOCKOUT, displayed:false, isStateChange: true)
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
 		if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
 			sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
@@ -274,30 +274,30 @@ private parse(String message) {
 			sendLogin()
           	ifDebug(LOGINPROMPT)
 		}
-		
+
         if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
           	logError(PASSWORDINCORRECT)
 		}
 
 		if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
 			 ifDebug(LOGINSUCCESSFUL)
-			
+
 		}
 
 		if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
 			  logError(LOGINTIMEOUT)
 		}
-		
+
     }
-	
+
 	if(tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
-		
+
 		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
     	    sendEvent(name:"Status", value: PARTITIONARMEDAWAY, displayed:false, isStateChange: true)
 			sendEvent(name: "switch", value: "on")
         	systemArmed()
 	    }
-	
+
 		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
         	sendEvent(name:"Status", value: PARTITIONARMEDHOME, displayed:false, isStateChange: true)
 			sendEvent(name: "switch", value: "on")
@@ -323,7 +323,7 @@ def zoneOpen(message){
             zoneDevice.active()
         }
     }
-    
+
 }
 
 def zoneClosed(message){
@@ -417,7 +417,7 @@ def alarming(){
 
 //helpers
 private checkTimeStamp(message){
-    if (message ==~ timeStampPattern){
+    if (message =~ timeStampPattern){
         ifDebug("Time Stamp Found")
         	state.timeStampOn = true;
         	message = message.replaceAll(timeStampPattern, "")
@@ -453,9 +453,8 @@ def poll() {
 	ifDebug("Polling...")
 	def message = tpiCommands["Poll"]
     sendMsg(message)
-		
+
     //return new hubitat.device.HubAction(tpiCommands["Poll"], hubitat.device.Protocol.TELNET)
-	
 }
 
 private removeChildDevices(delete) {
@@ -471,7 +470,7 @@ private sendLogin(){
     if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
     cmdToSend += chkSumStr
     cmdToSend = cmdToSend + "\r\n"
-    sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))   
+    sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
 }
 
 def sendMsg(String s) {
@@ -488,9 +487,8 @@ def getReTry(Boolean inc){
 	return reTry
 }
 
-
 def telnetConnection(){
- 	telnetClose() 
+ 	telnetClose()
 	try {
 		//open telnet connection
 		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
@@ -500,7 +498,7 @@ def telnetConnection(){
         StatusReport()
 	} catch(e) {
 		logError("initialize error: ${e.message}")
-	}	
+	}
 }
 
 def telnetStatus(String status){
@@ -514,24 +512,24 @@ def telnetStatus(String status){
 	}
 }
 
-private ifDebug(msg){  
+private ifDebug(msg){
 	parent.ifDebug('Connection Driver: ' + msg)
 }
 
-private logError(msg){  
+private logError(msg){
 	parent.logError('Connection Driver: ' + msg)
 }
 
-@Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /  
+@Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
 
 @Field final Map 	errorCodes = [
-    0: 	'No Error', 
+    0: 	'No Error',
     1: 	'Receive Buffer Overrun',
     2: 	'Receive Buffer Overflow',
     3: 	'Transmit Buffer Overflow',
     10: 'Keybus Transmit Buffer Overrun',
     11: 'Keybus Transmit Time Timeout',
-    12: 'Keybus Transmit Mode Timeout', 
+    12: 'Keybus Transmit Mode Timeout',
     13: 'Keybus Transmit Keystring Timeout',
     14: 'Keybus Interface Not Functioning (the TPI cannot communicate with the security system)',
     15: 'Keybus Busy (Attempting to Disarm or Arm with user code)',
@@ -649,12 +647,12 @@ private logError(msg){
     500: COMMANDACCEPTED,
     501: COMMANDERROR,
     502: SYSTEMERROR,
-	502020: APIFAULT,
+	  502020: APIFAULT,
     505: LOGININTERACTION,
-	5050: PASSWORDINCORRECT,
-	5051: LOGINSUCCESSFUL,
-	5052: LOGINTIMEOUT,
-	5053: LOGINPROMPT,
+    5050: PASSWORDINCORRECT,
+    5051: LOGINSUCCESSFUL,
+    5052: LOGINTIMEOUT,
+    5053: LOGINPROMPT,
     510: KEYPADLEDSTATE,
     511: LEDFLASHSTATE,
     550: TIMEDATEBROADCAST,
@@ -745,7 +743,7 @@ private logError(msg){
 ]
 @Field final Map	tpiCommands = [
 		Login: "005",
-		Poll: "000",	
+		Poll: "000",
 		TimeStampOn: "0550",
 		TimeStampOff: "0551",
 		StatusReport: "001",
@@ -760,6 +758,9 @@ private logError(msg){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.5
+*   Fixed regex matching for timestamps.
+*
 * Version: 0.3.4
 *   Added Armed Away and Armed Home States, including HSM instructions
 *   Added Polling Rate - Default State is Disabled
@@ -811,8 +812,8 @@ Version: 0.11.0
 *	Added Motion Zone Capability
 *
 * Version: 0.10.0
-* 
-* 	Just the basics. 
+*
+* 	Just the basics.
 *		Establish Telnet with Envisalink
 * 		Interpret Incoming Messages from Envisalink
 *		Arm Away
@@ -826,5 +827,5 @@ Version: 0.11.0
 *		Create Child Virtual Contacts (Zones)
 *		Zone Open and Restored (Closed) Implementation
 *		Error Codes
-*		
+*
 */
