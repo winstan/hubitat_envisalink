@@ -506,7 +506,7 @@ def telnetStatus(String status){
 	if (status != "receive error: Stream is closed"){
 		getReTry(true)
 		logError("Telnet connection dropped...")
-		initialize()
+		telnetConnection()
 	} else {
 		logError("Telnet is restarting...")
 	}
@@ -758,6 +758,9 @@ private logError(msg){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.3.6
+* Changed Action on Telnet Drop
+*
 * Version: 0.3.5
 *   Fixed regex matching for timestamps.
 *
