@@ -225,6 +225,7 @@ def notificationPage(){
 				}
 				paragraph "<h3><b>Notification Devices</b></h2>"
 				input "speechDevices", "capability.speechSynthesis", title: "Which speech devices?", required:false, multiple:true, submitOnChange:true
+				if(speechDevices){input "defaultVol", "number", title: "Fixed speaker Volume", description: "0-100%", defaultValue: "70",  required: true}
 				input "notificationDevices", "capability.notification", title: "Which notification devices?", required:false, multiple:true, submitOnChange:true
 
 			}
@@ -504,7 +505,7 @@ def speakAlarm(){
 
 private speakIt(str)	{
 	if (state.lastPhaseSpoken == str) return
-
+	
 	state.lastPhaseSpoken = str;
 	ifDebug("TTS: $str")
 	if (state.speaking)		{
@@ -512,16 +513,21 @@ private speakIt(str)	{
 		runOnce(new Date(now() + 10000), speakRetry, [overwrite: false, data: [str: str]])
 		return
 	}
-
-	if (!speechDevices)		return;
-	ifDebug("Found Speech Devices")
-
-	state.speaking = true
-	speechDevices.speak(str)
-
+	
+	if (speechDevices)	{
+		ifDebug("Found Speech Devices")
+		state.speaking = true
+		speechDevices.each {
+			def prevVolume = it.currentValue("volume")
+			//speechDevices.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
+			speechDevices.speak(str)
+		}
+	}
+	
+	
 	if (notificationDevices){
 		ifDebug("Found Notification Devices")
-		notificationDevices.deviceNotification(str)
+		notificationDevices.deviceNotification(str)	
 	}
 	state.speaking = false
 }
@@ -646,7 +652,7 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = "0.3.4"
+	state.version = "0.3.5"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
