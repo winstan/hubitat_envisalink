@@ -519,8 +519,8 @@ private speakIt(str)	{
 		state.speaking = true
 		speechDevices.each {
 			def prevVolume = it.currentValue("volume")
-			//speechDevices.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
-			speechDevices.speak(str)
+			it.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
+			//it.speak(str)
 		}
 	}
 	
@@ -690,6 +690,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.3.6
+*	Fixed speakIt routine
+*
 * Version: 0.3.5
 *	Fixed error handling on delays when null
 *
