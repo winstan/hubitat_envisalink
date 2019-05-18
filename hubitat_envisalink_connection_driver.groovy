@@ -367,9 +367,9 @@ def disarming(){
 }
 
 def systemArmed(){
-	if (state.armState != "away_armed"){
-		ifDebug("Away Armed")
-		state.armState = "away_armed"
+	if (state.armState != "armed_away"){
+		ifDebug("Armed Away")
+		state.armState = "armed_away"
 		parent.lockIt()
 		parent.switchItArmed()
 		parent.speakArmed()
@@ -382,9 +382,9 @@ def systemArmed(){
 }
 
 def systemArmedHome(){
-	if (state.armState != "home_armed"){
-		ifDebug("Home Armed")
-		state.armState = "home_armed"
+	if (state.armState != "armed_home"){
+		ifDebug("Armed Home")
+		state.armState = "armed_home"
 		parent.lockIt()
 		parent.switchItArmed()
 		parent.speakArmed()
@@ -462,6 +462,7 @@ private removeChildDevices(delete) {
 }
 
 private sendLogin(){
+	ifDebug("sendLogin: ${passwd}")
     def cmdToSend =  tpiCommands["Login"] + "${passwd}"
     def cmdArray = cmdToSend.toCharArray()
     def cmdSum = 0
@@ -489,13 +490,11 @@ def getReTry(Boolean inc){
 
 def telnetConnection(){
  	telnetClose()
+	pauseExecution(5000)
 	try {
 		//open telnet connection
 		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
-		//give it a chance to start
-		pauseExecution(1000)
-		//poll()
-        StatusReport()
+		runOnce(new Date(now() + 10000), StatusReport)
 	} catch(e) {
 		logError("initialize error: ${e.message}")
 	}
@@ -506,10 +505,11 @@ def telnetStatus(String status){
 	if (status != "receive error: Stream is closed"){
 		getReTry(true)
 		logError("Telnet connection dropped...")
-		telnetConnection()
+
 	} else {
 		logError("Telnet is restarting...")
 	}
+	runOnce(new Date(now() + 10000), telnetConnection)
 }
 
 private ifDebug(msg){
@@ -593,8 +593,8 @@ private logError(msg){
 @Field static final String PARTITIONREADY = "Ready"
 @Field static final String PARTITIONNOTREADY = "Not Ready"
 @Field static final String PARTITIONARMEDSTATE = "Armed State"
-@Field static final String PARTITIONARMEDAWAY = "Away Armed"
-@Field static final String PARTITIONARMEDHOME = "Home Armed"
+@Field static final String PARTITIONARMEDAWAY = "Armed Away"
+@Field static final String PARTITIONARMEDHOME = "Armed Home"
 @Field static final String PARTITIONNOTREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
 @Field static final String PARTITIONINALARM = "In Alarm"
 @Field static final String PARTITIONDISARMED = "Disarmed"
@@ -759,7 +759,9 @@ private logError(msg){
 
 /***********************************************************************************************************************
 * Version: 0.3.6
-* Changed Action on Telnet Drop
+* Fixed Initialization
+* Fixed Telnet Failed Routine
+* Fixed 'Backwards' Arm states
 *
 * Version: 0.3.5
 *   Fixed regex matching for timestamps.
