@@ -519,8 +519,8 @@ private speakIt(str)	{
 		state.speaking = true
 		speechDevices.each {
 			def prevVolume = it.currentValue("volume")
-			it.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
-			//it.speak(str)
+			//it.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
+			it.speak(str)
 		}
 	}
 	
