@@ -808,6 +808,10 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.4
+*	Little commented out code maybe for setting up custom actions based on codes.
+* 	Honestly I am considering managing all that in the driver, like a lock does.
+*
 * Version: 0.3.6
 *	Fixed speakIt routine
 *
