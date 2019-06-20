@@ -41,6 +41,7 @@ metadata {
         command "StatusReport"
         command "ArmAway"
         command "ArmHome"
+        //command "ArmAwayZeroEntry"
         //command "SoundAlarm"
         command "Disarm"
         command "ChimeToggle"
@@ -49,6 +50,7 @@ metadata {
 
 
         attribute   "Status", "string"
+        attribute   "Code", "string"
 	}
 
 	preferences {
@@ -70,7 +72,7 @@ metadata {
 def installed() {
 	ifDebug("installed...")
     initialize()
-   }
+}
 
 def updated() {
 	ifDebug("updated...")
@@ -108,12 +110,10 @@ def initialize() {
    runIn(5, "telnetConnection")
 }
 
-
 def uninstalled() {
     telnetClose()
 	removeChildDevices(getChildDevices())
 }
-
 //envisalink calls
 def on(){
     ifDebug("On")
@@ -127,13 +127,21 @@ def off(){
 
 def ArmAway(){
 	ifDebug("armAway()")
+    state.armState = "arming_away"
     def message = tpiCommands["ArmAway"]
     sendMsg(message)
 }
 
 def ArmHome(){
  	ifDebug("armHome()")
+    state.armState = "arming_home"
     def message = tpiCommands["ArmHome"]
+    sendMsg(message)
+}
+
+def ArmAwayZeroEntry(){
+ 	ifDebug("ArmAwayZeroEntry()")
+    def message = tpiCommands["ArmAwayZeroEntry"]
     sendMsg(message)
 }
 
@@ -219,6 +227,10 @@ private parse(String message) {
         systemError(message)
     }
 
+    if(tpiResponses[message.take(3) as int] == CODEREQUIRED) {
+        runIn(5, sendCode())
+    }
+
 	if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
         zoneOpen(message)
     }
@@ -295,15 +307,45 @@ private parse(String message) {
 		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
     	    sendEvent(name:"Status", value: PARTITIONARMEDAWAY, displayed:false, isStateChange: true)
 			sendEvent(name: "switch", value: "on")
-        	systemArmed()
+            if (state.armState.contains("home")){
+                systemArmedHome()
+            }else {
+            	systemArmed()
+            }
 	    }
 
 		if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
         	sendEvent(name:"Status", value: PARTITIONARMEDHOME, displayed:false, isStateChange: true)
 			sendEvent(name: "switch", value: "on")
-        	systemArmedHome()
+        	if (state.armState.contains("home")){
+                systemArmedHome()
+            }else {
+            	systemArmed()
+            }
     	}
 	}
+
+    if(tpiResponses[message.take(3) as int] == USEROPENING){
+         def userPosition = parseUser(message)
+         sendEvent(name:"Code", value: userPosition, displayed:false, isStateChange: true)
+         //parent.userCodeDisarm(userPosition)
+    }
+
+    if(tpiResponses[message.take(3) as int] == USERCLOSING){
+        def userPosition = parseUser(message)
+        sendEvent(name:"Code", value: userPosition, displayed:false, isStateChange: true)
+        //parent.userCodeArm(userPosition)
+    }
+
+     if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
+         sendEvent(name:"Code", value: "System", displayed:false, isStateChange: true)
+         specialArm()
+    }
+
+     if(tpiResponses[message.take(3) as int] == SPECIALOPENING){
+         sendEvent(name:"Code", value: "System", displayed:false, isStateChange: true)
+         specialDisarm()
+    }
 }
 
 def zoneOpen(message){
@@ -347,8 +389,9 @@ def zoneClosed(message){
 
 def systemError(message){
     def substringCount = message.size() - 3
-    message = message.substring(substringCount).take(3).replaceAll('0', '')
-    logError("System Error: ${message} - ${errorCodes.getAt(message)}")
+    message = message.substring(4,message.size()).replaceAll('0', '') as int
+    //message = message.substring(substringCount).take(3).replaceAll('0', '')
+    logError("System Error: ${message} - ${errorCodes[(message)]}")
 }
 
 def disarming(){
@@ -396,7 +439,6 @@ def systemArmedHome(){
 	}
 }
 
-
 def entryDelay(){
 	 ifDebug("entryDelay")
 		state.armState = "intrusion"
@@ -405,7 +447,6 @@ def entryDelay(){
 
 def exitDelay(){
 	 ifDebug("exitDelay")
-		state.armState = "exit"
 		parent.speakExitDelay()
 }
 
@@ -414,6 +455,31 @@ def alarming(){
 		state.armState = "alarming"
 		parent.speakAlarm()
 }
+
+// def parseUser(message){
+//     ifDebug("parseUser")
+//     def length = message.size()
+//     def userPosition = message.substring(4,length)
+//     ifDebug("${USEROPENING} - ${userPosition}" )
+//     return userPosition
+// }
+
+def sendCode(){
+    ifDebug("sendCode")
+    def sendMsg = tpiCommands["CodeSend"] + code
+    ifDebug(sendMsg)
+    sendMsg(sendMsg)
+}
+
+// def specialArm(){
+//     ifDebug("specialArm")
+//     //TODO add speakIt
+// }
+
+// def specialDisarm(){
+//     ifDebug("specialDisarm")
+//     //TODO add speakIt
+// }
 
 //helpers
 private checkTimeStamp(message){
@@ -453,8 +519,6 @@ def poll() {
 	ifDebug("Polling...")
 	def message = tpiCommands["Poll"]
     sendMsg(message)
-
-    //return new hubitat.device.HubAction(tpiCommands["Poll"], hubitat.device.Protocol.TELNET)
 }
 
 private removeChildDevices(delete) {
@@ -523,26 +587,27 @@ private logError(msg){
 @Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
 
 @Field final Map 	errorCodes = [
-    0: 	'No Error',
-    1: 	'Receive Buffer Overrun',
-    2: 	'Receive Buffer Overflow',
-    3: 	'Transmit Buffer Overflow',
-    10: 'Keybus Transmit Buffer Overrun',
-    11: 'Keybus Transmit Time Timeout',
-    12: 'Keybus Transmit Mode Timeout',
-    13: 'Keybus Transmit Keystring Timeout',
-    14: 'Keybus Interface Not Functioning (the TPI cannot communicate with the security system)',
-    15: 'Keybus Busy (Attempting to Disarm or Arm with user code)',
-    16: 'Keybus Busy – Lockout (The panel is currently in Keypad Lockout – too many disarm attempts)',
-    17: 'Keybus Busy – Installers Mode (Panel is in installers mode, most functions are unavailable)',
-    18: 'Keybus Busy – General Busy (The requested partition is busy)',
-    20: 'API Command Syntax Error',
-    21: 'API Command Partition Error (Requested Partition is out of bounds)',
-    22: 'API Command Not Supported',
-    23: 'API System Not Armed (sent in response to a disarm command)',
-    24: 'API System Not Ready to Arm (system is either not-secure, in exit-delay, or already armed',
-    25: 'API Command Invalid Length 26 API User Code not Required',
-    27: 'API Invalid Characters in Command (no alpha characters are allowed except for checksum'
+    0: 	"No Error",
+    1: 	"Receive Buffer Overrun",
+    2: 	"Receive Buffer Overflow",
+    3: 	"Transmit Buffer Overflow",
+    10: "Keybus Transmit Buffer Overrun",
+    11: "Keybus Transmit Time Timeout",
+    12: "Keybus Transmit Mode Timeout",
+    13: "Keybus Transmit Keystring Timeout",
+    14: "Keybus Interface Not Functioning (the TPI cannot communicate with the security system)",
+    15: "Keybus Busy (Attempting to Disarm or Arm with user code)",
+    16: "Keybus Busy – Lockout (The panel is currently in Keypad Lockout – too many disarm attempts)",
+    17: "Keybus Busy – Installers Mode (Panel is in installers mode, most functions are unavailable)",
+    18: "Keybus Busy – General Busy (The requested partition is busy)",
+    20: "API Command Syntax Error",
+    21: "API Command Partition Error (Requested Partition is out of bounds)",
+    22: "API Command Not Supported",
+    23: "API System Not Armed (sent in response to a disarm command)",
+    24: "API System Not Ready to Arm (system is either not-secure, in exit-delay, or already armed",
+    25: "API Command Invalid Length 26 API User Code not Required",
+    26: "API User Code not Required",
+    27: "API Invalid Characters in Command (no alpha characters are allowed except for checksum"
 ]
 
 @Field static final String COMMANDACCEPTED = "Command Accepted"
@@ -751,13 +816,17 @@ private logError(msg){
 		ToggleChime: "0711*4",
 		ArmHome: "0311",
 		ArmAway: "0301",
-	    ArmwAwayZeroEntry: "0302",
+	    ArmAwayZeroEntry: "0321",
 	    PanicFire: "0601",
 	    PanicAmbulance: "0602",
-	    PanicPolice: "0603"
+	    PanicPolice: "0603",
+        CodeSend: "200"
 ]
 
 /***********************************************************************************************************************
+* Version: 0.4
+*   Arm/Disarm user and special parse
+* 
 * Version: 0.3.6
 * Fixed Initialization
 * Fixed Telnet Failed Routine
@@ -804,6 +873,7 @@ private logError(msg){
 *
 * Version: 0.13.0
 *	Fixed Zone Type Conversion (Always setting up Motion Sensor)
+*
 * Version: 0.13.0
 *	Adding debug switch for reducing logging
 *	Move this section to the bottom of the file

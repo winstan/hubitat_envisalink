@@ -46,6 +46,11 @@ preferences {
 	page(name: "switchPage", nextPage: "mainPage")
     page(name: "defineZoneMap", nextPage: "zoneMapsPage")
     page(name: "editZoneMapPage", nextPage: "zoneMapsPage")
+
+	page(name: "codeMap", nextPage: "mainPage")
+	page(name: "defineCodeMap", nextPage: "codeMap")
+	page(name: "editCodeMap", nextPage: "codeMap")
+
     page(name: "aboutPage", nextPage: "mainPage")
 }
 
@@ -53,7 +58,9 @@ preferences {
 def mainPage() {
     ifDebug("Showing mainPage")
 	state.isDebug = isDebug
-
+	state.creatingCodeMap = false
+	state.creatingZone = false
+    //state.codeMaps = [:]
 	 if(!state.envisalinkIntegrationInstalled && getChildDevices().size() == 0) {
 		 return dynamicPage(name: "mainPage", title: "", install: false, uninstall: true, nextPage: "zoneMapsPage") {
 			showTitle()
@@ -73,6 +80,12 @@ def mainPage() {
                 description: "Create Virtual Contacts and Map them to Existing Zones in your Envisalink setup",
                 page: "zoneMapsPage")
             }
+
+			// section("<h1>Code Mapping</h1>") {
+            //     href (name: "codeMap", title: "Codes",
+            //     description: "Define friendly names for Codes by associating them to a Code Position",
+            //     page: "codeMap")
+            // }
 
 			section("<h1>Notifications</h1>") {
                 href (name: "notificationPage", title: "Notifications",
@@ -232,6 +245,84 @@ def notificationPage(){
 	}
 }
 
+def codeMap() {
+    ifDebug("Showing codeMap")
+
+	if (state.creatingCodeMap)
+    {
+        createCodeMap()
+    }
+
+	dynamicPage(name: "codeMap", title: "", install: false, uninstall: false){
+
+        section("<h1>Code Maps</h1>"){
+            paragraph "The partition of your DSC supports up to 42 codes for arming and disarming. The TPI will send the code position to Envisalink Integration app." +
+            "You'll need to determine which user is in which position in the DSC setup, prior to mapping those users to friendly names here " 
+        }
+        section("") {
+            href (name: "createUserMapPage", title: "Create a Code Map",
+            description: "Define a friendly name for each known Code Map",
+            page: "defineCodeMap")
+        }
+
+       section("<h2>Existing Codes</h2>"){
+		   	state.codeMaps.each{
+				href (name: "editCodeMap", title: "${it}",
+                description: "Code Details",
+                params: [codeMapNumber: it.key],
+                page: "editCodeMap")
+			}
+		}
+	}
+}
+
+def defineCodeMap() {
+    ifDebug("Showing defineCodeMap")
+    if (state.codeMaps[codeNumber] != null){
+         logError("Code Map Already Exists")   
+    }
+    
+	if (codeNumber && state.codeMaps[codeNumber as int] == null){
+    	state.creatingCodeMap = true;
+    } 
+
+	dynamicPage(name: "defineCodeMap", title: ""){
+        section("<h1>Create a Code Map</h1>"){
+            paragraph "Create a Map for a Code in Envisalink"
+           	input "codeName", "text", title: "Code Name", required: true, multiple: false, submitOnChange: false
+            input "codeNumber", "number", title: "Which Position 1-64", required: true, multiple: false, range: "1..42", submitOnChange: true
+        }
+	}
+}
+
+def editCodeMap(message) {
+    ifDebug("Showing editCodeMap")
+   dynamicPage(name: "editCodeMap", title: ""){
+        section("<h1>Edit a Code Map</h1>"){
+            paragraph "Coming Soon"
+           	//input "codeName", "text", title: "Code Name", required: true, multiple: false, submitOnChange: false
+            //input "codeNumber", "number", title: "Which Position 1-64", required: true, multiple: false, range: "1..42", submitOnChange: true
+        }
+	}
+    //ifDebug("editing ${message.deviceNetworkId}")
+    //state.allZones = getChildDevice(state.EnvisalinkDNI).getChildDevices()
+    //def zoneDevice = getChildDevice(state.EnvisalinkDNI).getChildDevice(message.deviceNetworkId)
+    //def paragraphText = ""
+    //state.editedZoneDNI = message.deviceNetworkId;
+    // if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}){
+    //     paragraphText = paragraphText + "Motion Sensor\n"
+    // }
+    // if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
+    //     paragraphText = paragraphText + "Contact Sensor\n"
+    // }
+    // dynamicPage(name: "editZoneMapPage", title: ""){
+    //     section("<h1>${zoneDevice.label}</h1>"){
+    //         paragraph paragraphText
+    //     }
+
+    // }
+}
+
 def zoneMapsPage() {
     ifDebug("Showing zoneMapsPage")
     if (getChildDevices().size() == 0 && !state.envisalinkIntegrationInstalled)
@@ -344,6 +435,16 @@ def castEnvisalinkDeviceStates(){
     }
 }
 
+def createCodeMap(){
+	ifDebug("createCodeMap")
+	def newMap = [(codeNumber as int):(codeName)]
+	ifDebug("New Map: ${newMap}")
+	if (state.codeMaps == null){
+		state.codeMaps = []
+	}
+	state.codeMaps << [(codeNumber as int):(codeName)]
+}
+
 def createZone(){
     ifDebug("Starting validation of ${zoneName} ZoneType: ${zoneType}")
     String formatted = String.format("%03d", zoneNumber)
@@ -371,7 +472,7 @@ def editZone(){
 }
 
 //events and actions
-def statusHandler(evt) {
+def hsmHandler(evt) {
     log.info "HSM Alert: $evt.value"
 	sendEvent(name: "HSM Event", value: evt.value)
 
@@ -379,43 +480,36 @@ def statusHandler(evt) {
 	state.lastHSMEvent = evt.value
 
 	def lock
-	if (!lock){
+	if (!lock)
+	{
 		lock = true
 		if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Exit Delay in Progress"
 			&& getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Entry Delay in Progress"
-		   	&& evt.value != "disarmed")
-		{
-			if (evt.value && state.enableHSM)
-			{
-				ifDebug("HSM is enabled")
-				switch(evt.value){
-					case "armedAway":
-					ifDebug("Sending Arm Away")
-						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Away Armed")
-						{
-							speakArmingAway()
-							getChildDevice(state.EnvisalinkDNI).ArmAway()
+		   	&& evt.value != "disarmed") {
+				if (evt.value && state.enableHSM)
+				{
+					ifDebug("HSM is enabled")
+					if (!getChildDevice(state.EnvisalinkDNI).currentValue("Status").contains("Armed"))
+					{
+						switch(evt.value){
+							case "armedAway":
+								ifDebug("Sending Arm Away")
+								speakArmingAway()
+								getChildDevice(state.EnvisalinkDNI).ArmAway()
+							break
+							case "armedHome":
+								ifDebug("Sending Arm Home")
+								speakArmingHome()
+								getChildDevice(state.EnvisalinkDNI).ArmHome()
+							break
+							case "armedNight":
+								ifDebug("Sending Arm Home")
+								speakArmingNight()
+								getChildDevice(state.EnvisalinkDNI).ArmHome()
+							break
 						}
-						break
-					case "armedHome":
-					ifDebug("Sending Arm Home")
-						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Home Armed")
-						{
-							speakArmingHome()
-							getChildDevice(state.EnvisalinkDNI).ArmHome()
-						}
-						break
-					case "armedNight":
-					ifDebug("Sending Arm Home")
-						if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Armed")
-						{
-							speakArmingNight()
-							getChildDevice(state.EnvisalinkDNI).ArmHome()
-						}
-						break
-
+					}
 				}
-			}
 		} else {
 			if (evt.value == "disarmed")
 			{
@@ -647,12 +741,32 @@ def lockUseHandler(evt){
 
 }
 
+// def userCodeDisarm(data){
+// 	def code = data as int
+// 	ifDebug("userCodeDisarm: ${code}")
+//     if(state.codeMaps[code.toString()]){
+// 		ifDebug("Disarm Code Used: ${state.codeMaps[code.toString()].value}")
+// 		//TODO: Do something with this knowledge
+// 	}
+// }
+
+// def userCodeArm(data){
+// 	def code = data as int
+// 	ifDebug("userCodeArm: ${code}")
+// 	ifDebug(state.codeMaps)
+// 	def found = state.codeMaps[code]
+//         ifDebug(found)
+//         if(found){
+// 			ifDebug("Arm Code Used: ${found.value}")
+// 		}
+// }
+
 private removeChildDevices(delete) {
 	delete.each {deleteChildDevice(it.deviceNetworkId)}
 }
 
 def showTitle(){
-	state.version = "0.3.5"
+	state.version = "0.4"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
@@ -679,9 +793,13 @@ def initialize() {
 	log.info "initialize"
 	sendEvent(name: "Initialized", value: "online")
 	unsubscribe()
+	state.creatingCodeMap = false;
     state.creatingZone = false;
+	if (state.codeMaps == null){
+		state.codeMaps = [:]
+	}
 	log.info "subscribing"
-    subscribe(location, "hsmStatus", statusHandler)
+    subscribe(location, "hsmStatus", hsmHandler)
 	subscribe(lockCodeLock,"lock",lockUseHandler)
 }
 
