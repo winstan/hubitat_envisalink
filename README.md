@@ -19,8 +19,3 @@ _At this time, I only support a single partition configuration._
 1. Install Envisalink Connection driver
 2. Add Application Code and Load Envisalink Integration application
 3. Using the Envisalink Integration application, configure your IP, Password and Code to Envisalink and your Zone layout
-
-
-> KNOWN ISSUES
-
-* If the HSM system is armed and disarmed very quickly in response to events, sometimes Envisalink continues to execute the Arm command and seemingly loses the disarm command.
