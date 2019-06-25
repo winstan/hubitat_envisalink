@@ -111,19 +111,6 @@ def updated() {
 
 def initialize() {
    runIn(5, "telnetConnection")
-//    if (state.userCodes == null) {
-//        ifDebug("Initializing userCodes")
-//        state.userCodes = [:];
-//    } else {
-//         sendEvent(name:"Codes", value: state.userCodes, displayed:true, isStateChange: true)
-//    }
-//    ifDebug("Current Codes: ${device.currentValue("Codes")}")
-
-    state.remove("userCodes")
-    state.remove("userPosition")
-    state.remove("newCode")
-    state.remove("codePosition")
-    state.remove("programmingMode")
 }
 
 def uninstalled() {
@@ -203,6 +190,11 @@ def setUserCode(name, position, code){
 
     ifDebug("Current Codes: ${device.currentValue("Codes")}")
 
+    if (!device.currentValue("Codes")){
+        def tempMap = [:]
+        def tempJson = new groovy.json.JsonBuilder(tempMap)
+         sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
+    }
     def codePosition = position.toString()
     codePosition = codePosition.padLeft(2, "0")
     def newCode = code.toString()
