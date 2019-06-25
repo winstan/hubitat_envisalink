@@ -111,12 +111,19 @@ def updated() {
 
 def initialize() {
    runIn(5, "telnetConnection")
-   if (state.userCodes == null) {
-       ifDebug("Initializing userCodes")
-       state.userCodes = [:];
-   } else {
-        sendEvent(name:"Codes", value: state.userCodes, displayed:true, isStateChange: true)
-   }
+//    if (state.userCodes == null) {
+//        ifDebug("Initializing userCodes")
+//        state.userCodes = [:];
+//    } else {
+//         sendEvent(name:"Codes", value: state.userCodes, displayed:true, isStateChange: true)
+//    }
+//    ifDebug("Current Codes: ${device.currentValue("Codes")}")
+
+    state.remove("userCodes")
+    state.remove("userPosition")
+    state.remove("newCode")
+    state.remove("codePosition")
+    state.remove("programmingMode")
 }
 
 def uninstalled() {
@@ -193,64 +200,62 @@ def strobe(){
 
 def setUserCode(name, position, code){
     ifDebug("setUserCode ${name} ${position} ${code}")
-    ifDebug("Current userCodes: ${state.userCodes}")
+
+    ifDebug("Current Codes: ${device.currentValue("Codes")}")
+
     def codePosition = position.toString()
     codePosition = codePosition.padLeft(2, "0")
     def newCode = code.toString()
     newCode = newCode.padLeft(4, "0")
     ifDebug("padded: ${codePosition} ${newCode}")
-    if (state.userCodes == null){
-        ifDebug("Initializing userCodes")
-        state.userCodes = [:]
-    }
-    state.codePosition = codePosition
-    state.newCode = newCode
-    state.userCodes.put((codePosition), [(name):(newCode)])
-    ifDebug("User Codes: ${state.userCodes}")
+
+    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
+	assert storedCodes instanceof Map
+
+    storedCodes.put((codePosition.toString()), [(name):(newCode.toString())])
+    ifDebug("storedCodes: ${storedCodes}")
+    def json = new groovy.json.JsonBuilder(storedCodes)
+    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
 
     def result = sendKeyStrokes("*5" + masterCode)
     pauseExecution(7000)
 
-    sendKeyStrokes(state.codePosition + state.newCode)
+    sendKeyStrokes(codePosition + newCode)
     pauseExecution(5000)
 
     sendKeyStrokes("#")
     pauseExecution(5000)
 
-    state.userPosition = ""
-    state.newCode = ""
     
 }
 
 def deleteUserCode(position){
     ifDebug("deleteUserCode ${position}")
-    if (state.userCodes == null){
-        ifDebug("Initializing userCodes")
-        state.userCodes = [:]
-    }
     def codePosition = position.toString()
     codePosition = codePosition.padLeft(2, "0")
     ifDebug("padded code position ${codePosition}")
-    def selectedCode = state.userCodes[codePosition.toString()]
+
+    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
+	assert storedCodes instanceof Map
+
+    ifDebug("storedCodes: ${storedCodes}")
+    def selectedCode = storedCodes[codePosition]
+
     ifDebug("Selected Code: ${selectedCode}")
-    state.userCodes.remove(codePosition.toString())
-    ifDebug("User Codes: ${state.userCodes}")
+    storedCodes.remove(codePosition.toString())
 
-
-    state.codePosition = codePosition
-    state.newCode = ""
+    def json = new groovy.json.JsonBuilder(storedCodes)
+    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
 
     sendKeyStrokes("*5" + masterCode)
     pauseExecution(7000)
 
-    sendKeyStrokes(state.codePosition + "*")
+    sendKeyStrokes(codePosition + "*")
     pauseExecution(5000)
 
     sendKeyStrokes("#")
     pauseExecution(5000)
 
-    state.userPosition = ""
-    state.newCode = ""
 }
 
 def sendKeyStrokes(data){
@@ -291,7 +296,7 @@ def removeZone(zoneInfo){
     deleteChildDevice(zoneInfo.deviceNetworkId)
 }
 
-private parse(String message) {
+def parse(String message) {
     message = preProcessMessage(message)
     ifDebug("Parsing Incoming message: " + message)
 
@@ -428,24 +433,16 @@ private parse(String message) {
 
     if(tpiResponses[message.take(3) as int] == USEROPENING){
         def userPosition = parseUser(message)
-        sendEvent(name:"Code", value: userPosition, displayed:false, isStateChange: true)
-        //parent.userCodeDisarm(userPosition)
     }
 
     if(tpiResponses[message.take(3) as int] == USERCLOSING){
         def userPosition = parseUser(message)
-        sendEvent(name:"Code", value: userPosition, displayed:false, isStateChange: true)
-        //parent.userCodeArm(userPosition)
     }
 
     if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
-        sendEvent(name:"Code", value: "System", displayed:false, isStateChange: true)
-        specialArm()
     }
 
     if(tpiResponses[message.take(3) as int] == SPECIALOPENING){
-        sendEvent(name:"Code", value: "System", displayed:false, isStateChange: true)
-        specialDisarm()
     }
 
 }
@@ -608,13 +605,28 @@ def sendProgrammingMessage(String s){
 // }
 
 
-// def parseUser(message){
-//     ifDebug("parseUser")
-//     def length = message.size()
-//     def userPosition = message.substring(4,length)
-//     ifDebug("${USEROPENING} - ${userPosition}" )
-//     return userPosition
-// }
+def parseUser(message){
+    ifDebug("parseUser")
+    def length = message.size()
+    def userPosition = message.substring(4,length)
+    ifDebug("${USEROPENING} - ${userPosition}" )
+
+    sendEvent(name:"Last Used Code Position", value: userPosition, displayed:false, isStateChange: true)
+
+    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
+	assert storedCodes instanceof Map
+
+    ifDebug("storedCodes: ${storedCodes}")
+    def selectedCode = storedCodes[codePosition]
+
+    ifDebug("Selected Code: ${selectedCode}")
+
+    if (selectedCode){
+        sendEvent(name:"Last Used Code", value: selectedCode.key, displayed:false, isStateChange: true)
+    }
+
+    return userPosition
+}
 
 private checkTimeStamp(message){
     if (message =~ timeStampPattern){
