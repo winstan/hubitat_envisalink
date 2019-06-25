@@ -613,8 +613,11 @@ private speakIt(str)	{
 		state.speaking = true
 		speechDevices.each {
 			def prevVolume = it.currentValue("volume")
-			//it.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
-			it.speak(str)
+			if (it.hasCommand('setVolumeSpeakAndRestore')){
+				it.setVolumeSpeakAndRestore(defaultVol, str, prevVolume)
+			} else {
+				it.speak(str)
+			}
 		}
 	}
 	
@@ -808,6 +811,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.4.1
+*	Using hasCommand, re-implement setVolumeSpeakAndRestore
+*
 * Version: 0.4
 *	Little commented out code maybe for setting up custom actions based on codes.
 * 	Honestly I am considering managing all that in the driver, like a lock does.
