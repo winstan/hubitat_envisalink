@@ -27,8 +27,6 @@
 
 import groovy.transform.Field
 
-
-
 metadata {
 	definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 		capability "Initialize"
@@ -37,7 +35,7 @@ metadata {
         capability "Switch"
         capability "Actuator"
 		capability "Polling"
-        command "sendMsg", ["String"]
+        command "sendTelnetCommand", ["String"]
         command "StatusReport"
         command "ArmAway"
         command "ArmHome"
@@ -49,17 +47,19 @@ metadata {
 		command "poll"
         command "setUserCode", ["String", "Number", "Number"]
         command "deleteUserCode", ["Number"]
-
+        command "configureZone", ["Number", "Number"]
 
         attribute   "Status", "string"
-        attribute   "Code", "string"
         attribute   "Codes", "json"
+        attribute   "Last Used Code Position", "string"
+        attribute   "Last Used Code Name", "string"
 	}
 
 	preferences {
-		input("ip", "text", title: "IP Address", description: "ip", required: true)
-        input("passwd", "text", title: "Password", description: "password", required: true)
-        input("masterCode", "text", title: "Master Code", description: "Master Code", required: true)
+		input("ip", "text", title: "IP Address",  required: true)
+        input("passwd", "text", title: "Password", required: true)
+        input("masterCode", "text", title: "Master Code is required", required: true)
+        input("installerCode", "text", title: "Installer Code", description: "Installer Code is required if you wish to program the panel from this driver", required: false)
 		def pollRate = [:]
 		pollRate << ["0" : "Disabled"]
 		pollRate << ["1" : "Poll every minute"]
@@ -68,9 +68,26 @@ metadata {
 		pollRate << ["15" : "Poll every 15 minutes"]
 		pollRate << ["30" : "Poll every 30 minutes (not recommended)"]
 		input ("poll_Rate", "enum", title: "Device Poll Rate", options: pollRate, defaultValue: 0)
+
+        if (installerCode)
+        {
+            def delayOptions = [:]
+            delayOptions << ["030" : "30 seconds"]
+            delayOptions << ["045" : "45 seconds"]
+            delayOptions << ["060" : "60 seconds"]
+            delayOptions << ["090" : "90 seconds"]
+            delayOptions << ["120" : "120 seconds"]
+            input ("entry_delay1", "enum", title: "Entry Delay 1", options: delayOptions, defaultValue: 060)
+            input ("entry_delay2", "enum", title: "Extry Delay 2", options: delayOptions, defaultValue: 060)
+            input ("exit_delay", "enum", title: "Exit Delay 2", options: delayOptions, defaultValue: 060)
+        }
+
 	}
 }
 
+/***********************************************************************************************************************
+*   Platform Events
+*/
 
 def installed() {
 	ifDebug("installed...")
@@ -107,16 +124,25 @@ def updated() {
 		    ifDebug("Poll Rate set at 30 minutes")
 			break
 	}
+
+    if (installerCode) {
+        setDelays(entry_delay1, entry_delay2, exit_delay)
+    }
 }
 
 def initialize() {
    runIn(5, "telnetConnection")
+   state.programmingMode = ""
 }
 
 def uninstalled() {
     telnetClose()
 	removeChildDevices(getChildDevices())
 }
+
+/***********************************************************************************************************************
+*   Driver Commands
+*/
 
 def on(){
     ifDebug("On")
@@ -131,21 +157,17 @@ def off(){
 def ArmAway(){
 	ifDebug("armAway()")
     state.armState = "arming_away"
-    def message = tpiCommands["ArmAway"]
-    sendMsg(message)
+    composeArmAway()
 }
 
 def ArmHome(){
  	ifDebug("armHome()")
-    state.armState = "arming_home"
-    def message = tpiCommands["ArmHome"]
-    sendMsg(message)
+    composeArmHome()
 }
 
 def ArmAwayZeroEntry(){
  	ifDebug("ArmAwayZeroEntry()")
-    def message = tpiCommands["ArmAwayZeroEntry"]
-    sendMsg(message)
+    composeZeroEntryDelayArm()
 }
 
 def both(){
@@ -156,14 +178,12 @@ def both(){
 
 def ChimeToggle(){
 	ifDebug("ChimeToggle()")
-    def message = tpiCommands["ToggleChime"]
-    sendMsg(message)
+    composeChimeToggle()
 }
 
 def Disarm(){
  	ifDebug("Disarm()")
-    def message = tpiCommands["Disarm"] + masterCode
-    sendMsg(message)
+    composeDisarm()
 }
 
 def SoundAlarm(){
@@ -172,102 +192,51 @@ def SoundAlarm(){
 
 def siren(){
 	ifDebug("Siren : NOT IMPLEMENTED")
-
-
 }
 
 def StatusReport(){
-	sendMsg(tpiCommands["StatusReport"])
+	ifDebug("StatusReport")
+    composeStatusReport()
 }
 
 def strobe(){
  	ifDebug("Stobe : NOT IMPLEMENTED")
-    //if allDevices =  getChildDevices()
 }
 
 def setUserCode(name, position, code){
     ifDebug("setUserCode ${name} ${position} ${code}")
+    composeSetUserCode(name, position, code)   
+}
 
-    ifDebug("Current Codes: ${device.currentValue("Codes")}")
-
-    if (!device.currentValue("Codes")){
-        def tempMap = [:]
-        def tempJson = new groovy.json.JsonBuilder(tempMap)
-         sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
-    }
-    def codePosition = position.toString()
-    codePosition = codePosition.padLeft(2, "0")
-    def newCode = code.toString()
-    newCode = newCode.padLeft(4, "0")
-    ifDebug("padded: ${codePosition} ${newCode}")
-
-    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
-	assert storedCodes instanceof Map
-
-    storedCodes.put((codePosition.toString()), [(name):(newCode.toString())])
-    ifDebug("storedCodes: ${storedCodes}")
-    def json = new groovy.json.JsonBuilder(storedCodes)
-    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
-
-    def result = sendKeyStrokes("*5" + masterCode)
-    pauseExecution(7000)
-
-    sendKeyStrokes(codePosition + newCode)
-    pauseExecution(5000)
-
-    sendKeyStrokes("#")
-    pauseExecution(5000)
-
-    
+def configureZone(zonePosition, zoneDefinition){
+    ifDebug("configureZone ${zonePosition} ${zoneDefinition}")
+    composeZoneConfiguration(zonePosition, zoneDefinition)
 }
 
 def deleteUserCode(position){
     ifDebug("deleteUserCode ${position}")
-    def codePosition = position.toString()
-    codePosition = codePosition.padLeft(2, "0")
-    ifDebug("padded code position ${codePosition}")
-
-    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
-	assert storedCodes instanceof Map
-
-    ifDebug("storedCodes: ${storedCodes}")
-    def selectedCode = storedCodes[codePosition]
-
-    ifDebug("Selected Code: ${selectedCode}")
-    storedCodes.remove(codePosition.toString())
-
-    def json = new groovy.json.JsonBuilder(storedCodes)
-    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
-
-    sendKeyStrokes("*5" + masterCode)
-    pauseExecution(7000)
-
-    sendKeyStrokes(codePosition + "*")
-    pauseExecution(5000)
-
-    sendKeyStrokes("#")
-    pauseExecution(5000)
-
+    composeDeleteUserCode(position)
 }
 
-def sendKeyStrokes(data){
-    ifDebug("sendKeyStrokes: ${data}")
-    sendMessage = tpiCommands["SendKeyStroke"]
-    sendProgrammingMessage(sendMessage + data)
+def setDelays(entry, entry2, exit){
+    ifDebug("setDelays ${entry} ${entry2} ${exit}")
+    composeSetDelays(entry, entry2, exit)
 }
 
-def ToggleTimeStamp(){
+def poll() {
+	ifDebug("Polling...")
+	composePoll()
+}
+
+def TogleTimeStamp(){
     ifDebug("Toggle Time Stamp")
-    def message
-    if (state.timeStampOn)
-    {
-    	message = tpiCommands["TimeStampOn"]
-    }
-    else{
-     	message = tpiCommands["TimeStampOff"]
-    }
-    sendMsg(message)
+    composeTimeStampToggle()
 }
+
+
+/***********************************************************************************************************************
+*   End Points
+*/
 
 def createZone(zoneInfo){
     log.info "Creating ${zoneInfo.zoneName} with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType}"
@@ -288,45 +257,253 @@ def removeZone(zoneInfo){
     deleteChildDevice(zoneInfo.deviceNetworkId)
 }
 
+/***********************************************************************************************************************
+*   Compositions
+*/
+
+private composeEnterInstallerMode(){
+    ifDebug("composeEnterInstallerMode")
+    composeKeyStrokes("*8" + installerCode)
+}
+
+private composeExitInstallerMode(){
+    ifDebug("composeExitInstallerMode")
+    composeKeyStrokes("##")
+}
+
+private composeMasterCode(){
+    ifDebug("composeMasterCode")
+    def sendTelnetCommand = tpiCommands["CodeSend"] + masterCode
+    ifDebug(sendTelnetCommand)
+    sendTelnetCommand(sendTelnetCommand)
+}
+
+private composeInstallerCode(){
+    ifDebug("composeInstallerCode")
+    def sendTelnetCommand = tpiCommands["CodeSend"] + installerCode
+    ifDebug(sendTelnetCommand)
+    sendTelnetCommand(sendTelnetCommand)
+}
+
+private composeKeyStrokes(data){
+    ifDebug("composeKeyStrokes: ${data}")
+    sendMessage = tpiCommands["SendKeyStroke"]
+    sendProgrammingMessage(sendMessage + data)
+}
+
+private composeTimeStampToggle(){
+    def message
+    if (state.timeStampOn)
+    {
+    	message = tpiCommands["TimeStampOn"]
+    }
+    else{
+     	message = tpiCommands["TimeStampOff"]
+    }
+    sendTelnetCommand(message)
+}
+
+private composeArmAway(){
+    ifDebug("composeArmAway")
+    def message = tpiCommands["ArmAway"]
+    sendTelnetCommand(message)
+}
+
+private composeArmHome(){
+    ifDebug("composeArmHome")
+    state.armState = "arming_home"
+    def message = tpiCommands["ArmHome"]
+    sendTelnetCommand(message)
+}
+
+private composeDisarm(){
+    ifDebug("composeDisarm")
+    def message = tpiCommands["Disarm"] + masterCode
+    sendTelnetCommand(message)
+}
+
+private composeZeroEntryDelayArm(){
+    ifDebug("composeZeroEntryDelayArm")
+    def message = tpiCommands["ArmAwayZeroEntry"]
+    sendTelnetCommand(message)
+}
+
+private composeChimeToggle(){
+    ifDebug("composeChimeToggle")
+    def message = tpiCommands["ToggleChime"]
+    sendTelnetCommand(message)
+}
+
+private composeStatusReport(){
+    ifDebug("composeChimeToggle")
+    sendTelnetCommand(tpiCommands["StatusReport"])
+}
+
+private composeSetUserCode(name, position, code){
+    ifDebug("composeSetUserCode")
+    state.programmingMode = SETUSERCODE
+    ifDebug("Current Codes: ${device.currentValue("Codes")}")
+    if (!device.currentValue("Codes")){
+        def tempMap = [:]
+        def tempJson = new groovy.json.JsonBuilder(tempMap)
+         sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
+    }
+    def codePosition = position.toString()
+    codePosition = codePosition.padLeft(2, "0")
+    def newCode = code.toString()
+    newCode = newCode.padLeft(4, "0")
+    ifDebug("padded: ${codePosition} ${newCode}")
+
+    state.newCode = newCode
+    state.newCodePosition = codePosition
+    state.newName = name
+    state.programmingMode = SETUSERCODEINITIALIZE
+    composeKeyStrokes("*5" + masterCode)
+}
+
+private composeDeleteUserCode(position){
+    ifDebug("composeDeleteUserCode ${position}")
+     def codePosition = position.toString()
+    codePosition = codePosition.padLeft(2, "0")
+    ifDebug("padded code position ${codePosition}")
+    state.programmingMode = DELETEUSERCODEINITIALIZE
+    state.newCodePosition = codePosition
+    composeKeyStrokes("*5" + masterCode)
+}
+
+private composeSetDelays(entry, entry2, exit){
+    ifDebug("composeSetDelays")
+    ifDebug("Not Yet Implemented")
+    // composeEnterInstallerMode()
+    // pauseExecution(7000)
+
+    // def result = composeKeyStrokes("005")
+    // pauseExecution(5000)
+
+    // composeKeyStrokes("01")
+    // pauseExecution(5000)
+
+    // composeKeyStrokes(entry.toString())
+    // pauseExecution(5000)
+
+    // composeKeyStrokes(entry2.toString())
+    // pauseExecution(5000)
+
+    // composeKeyStrokes(exit.toString())
+    // pauseExecution(5000)
+
+    // composeExitInstallerMode()
+}
+
+private composeZoneConfiguration(zonePosition, zoneDefinition){
+    ifDebug("composeZoneConfiguration ${zonePosition} ${zoneDefinition}")
+    ifDebug("Not Yet Implemented")
+}
+
+private composePoll(){
+    ifDebug("composePoll")
+    def message = tpiCommands["Poll"]
+    sendTelnetCommand(message)
+}
+
+
+/***********************************************************************************************************************
+*   Telnet
+*/
+
+def telnetConnection(){
+ 	telnetClose()
+	pauseExecution(5000)
+	try {
+		//open telnet connection
+		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
+		runOnce(new Date(now() + 10000), StatusReport)
+	} catch(e) {
+		logError("initialize error: ${e.message}")
+	}
+}
+
+def telnetStatus(String status){
+	logError("telnetStatus- error: ${status}")
+	if (status != "receive error: Stream is closed"){
+		getReTry(true)
+		logError("Telnet connection dropped...")
+
+	} else {
+		logError("Telnet is restarting...")
+	}
+	runOnce(new Date(now() + 10000), telnetConnection)
+}
+
+private sendTelnetLogin(){
+	ifDebug("sendTelnetLogin: ${passwd}")
+    def cmdToSend =  tpiCommands["Login"] + "${passwd}"
+    def cmdArray = cmdToSend.toCharArray()
+    def cmdSum = 0
+    cmdArray.each { cmdSum += (int)it }
+    def chkSumStr = DataType.pack(cmdSum, 0x08)
+    if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
+    cmdToSend += chkSumStr
+    cmdToSend = cmdToSend + "\r\n"
+    sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
+}
+
+private sendTelnetCommand(String s) {
+    s = generateChksum(s)
+    ifDebug("sendTelnetCommand $s")
+	return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
+}
+
+private sendProgrammingMessage(String s){
+    s = generateChksum(s)
+    ifDebug("sendProgrammingMessage: ${s}")
+    def hubaction = new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET) 
+    sendHubCommand(hubaction);
+}
+
 def parse(String message) {
     message = preProcessMessage(message)
     ifDebug("Parsing Incoming message: " + message)
 
 	ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
 
-    if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
-        if(tpiResponses[message.take(6) as int] == APIFAULT) {
-            ifDebug(APIFAULT)
+    if(tpiResponses[message.take(3) as int] == COMMANDACCEPTED) {
+        if (state.programmingMode == SETUSERCODESEND){
+            setUserCodeSend()
         }
+
+        if (state.programmingMode == SETUSERCODECOMPLETE){
+            setUserCodeComplete()
+        }
+
+        if (state.programmingMode == DELETEUSERCODE){
+            deleteUserCodeSend()
+        }
+        
+        if (state.programmingMode == DELETEUSERCOMPLETE){
+            deleteUserCodeComplete()
+        }
+    } 
+
+
+    if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
         systemError(message)
     }
 
     if(tpiResponses[message.take(3) as int] == KEYPADLEDSTATE) {
-        def ledState = message.substring(3,message.size())
-        ifDebug(ledState)
-        def ledBinary = Integer.toBinaryString(ledState as int)
-        def paddedBinary = ledBinary.padLeft(8, "0")
-        ifDebug("${paddedBinary}")
-
-        if (paddedBinary.substring(7,8) == "0"){
-            ifDebug("Partition Ready LED Off")        
-            
-        }
-
-        if (paddedBinary.substring(7,8) == "1"){
-            ifDebug("Partition Ready LED On")        
-        }
-
-        
+        keypadLedState(message.substring(3,message.size()))
     }
 
     if(tpiResponses[message.take(3) as int] == CODEREQUIRED) {
-        sendCode()
+        composeMasterCode()
     }
 
     if(tpiResponses[message.take(3) as int] == MASTERCODEREQUIRED) {
-        sendCode()
-        
+        composeMasterCode()
+    }
+
+    if(tpiResponses[message.take(3) as int] == INSTALLERSCODEREQUIRED) {
+        composeInstallerCode()
     }
 
     if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
@@ -338,51 +515,40 @@ def parse(String message) {
     }
 
     if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
-        sendEvent(name:"Status", value: PARTITIONREADY, displayed:false, isStateChange: true)
-        sendEvent(name: "switch", value: "off")
-        state.armState = "disarmed"
+        partitionReady()
     }
 
     if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
-        sendEvent(name:"Status", value: PARTITIONNOTREADY, displayed:false, isStateChange: true)
+        partitionNotReady()
     }
 
     if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
-        sendEvent(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED, displayed:false, isStateChange: true)
+        partitionReadyForForcedArmEnabled()
     }
 
     if(tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
-        sendEvent(name:"Status", value: PARTITIONINALARM, displayed:false, isStateChange: true)
-        alarming()
+        partitionAlarm()
     }
 
     if(tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
-        sendEvent(name:"Status", value: PARTITIONDISARMED, displayed:false, isStateChange: true)
-        sendEvent(name: "switch", value: "off")
-        disarming()
+        partitionDisarmed()
     }
 
     if(tpiResponses[message.take(3) as int] == EXITDELAY) {
-        sendEvent(name:"Status", value: EXITDELAY, displayed:false, isStateChange: true)
         exitDelay()
     }
 
     if(tpiResponses[message.take(3) as int] == ENTRYDELAY) {
-        sendEvent(name:"Status", value: ENTRYDELAY, displayed:false, isStateChange: true)
         entryDelay()
     }
 
     if(tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
-        sendEvent(name:"Status", value: KEYPADLOCKOUT, displayed:false, isStateChange: true)
+        keypadLockout()
     }
 
     if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
         if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
-            sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
-            ifDebug("Connection to Envisalink established")
-            state.reTryCount = 0
-            sendLogin()
-            ifDebug(LOGINPROMPT)
+            loginPrompt()
         }
 
         if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
@@ -391,7 +557,6 @@ def parse(String message) {
 
         if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
             ifDebug(LOGINSUCCESSFUL)
-
         }
 
         if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
@@ -403,32 +568,20 @@ def parse(String message) {
     if(tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
 
         if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
-            sendEvent(name:"Status", value: PARTITIONARMEDAWAY, displayed:false, isStateChange: true)
-            sendEvent(name: "switch", value: "on")
-            if (state.armState.contains("home")){
-                systemArmedHome()
-            }else {
-                systemArmed()
-            }
+            partitionArmedAway()
         }
 
         if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
-            sendEvent(name:"Status", value: PARTITIONARMEDHOME, displayed:false, isStateChange: true)
-            sendEvent(name: "switch", value: "on")
-            if (state.armState.contains("home")){
-                systemArmedHome()
-            }else {
-                systemArmed()
-            }
+            partitionArmedHome()
         }
     }
 
     if(tpiResponses[message.take(3) as int] == USEROPENING){
-        def userPosition = parseUser(message)
+        parseUser(message)
     }
 
     if(tpiResponses[message.take(3) as int] == USERCLOSING){
-        def userPosition = parseUser(message)
+        parseUser(message)
     }
 
     if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
@@ -439,7 +592,185 @@ def parse(String message) {
 
 }
 
-def zoneOpen(message){
+/***********************************************************************************************************************
+*   Helpers
+*/
+
+private partitionReady(){
+    ifDebug("partitionReady")
+    sendEvent(name:"Status", value: PARTITIONREADY)
+    sendEvent(name: "switch", value: "off")
+    state.armState = "disarmed"
+    state.newCode = ""
+    state.newCodePosition = ""
+    state.newName = ""
+    state.programmingMode = ""
+}
+
+private partitionNotReady(){
+    ifDebug("partitionNotReady")
+    sendEvent(name:"Status", value: PARTITIONNOTREADY)
+}
+
+private partitionReadyForForcedArmEnabled(){
+    ifDebug("partitionReadyForForcedArmEnabled")
+    sendEvent(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED)
+}
+
+private partitionAlarm(){
+    ifDebug("partitionAlarm")
+    sendEvent(name:"Status", value: PARTITIONINALARM)
+    state.armState = "alarming"
+	parent.speakAlarm()
+}
+
+private partitionDisarmed(){
+    ifDebug("partitionDisarmed")
+    sendEvent(name:"Status", value: PARTITIONDISARMED)
+    sendEvent(name: "switch", value: "off")
+    if (state.armState != "disarmed"){
+		ifDebug("disarming")
+		state.armState = "disarmed"
+		parent.unlockIt()
+		parent.switchItDisarmed()
+		parent.speakDisarmed()
+
+		if (location.hsmStatus != "disarmed")
+		{
+			sendLocationEvent(name: "hsmSetArm", value: "disarm")
+		}
+	}
+}
+
+private entryDelay(){
+	ifDebug("entryDelay")
+    sendEvent(name:"Status", value: ENTRYDELAY)
+	state.armState = "intrusion"
+	parent.speakEntryDelay()
+}
+
+private exitDelay(){
+    ifDebug("exitDelay")
+    sendEvent(name:"Status", value: EXITDELAY)
+    parent.speakExitDelay()
+}
+
+private keypadLockout(){
+    ifDebug("keypadLockout")
+    sendEvent(name:"Status", value: KEYPADLOCKOUT)
+}
+
+private loginPrompt(){
+    ifDebug("loginPrompt")
+    sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+    ifDebug("Connection to Envisalink established")
+    state.reTryCount = 0
+    sendTelnetLogin()
+    ifDebug(LOGINPROMPT)
+}
+
+private setUserCodeSend(){
+    ifDebug("setUserCodeSend")
+    state.programmingMode = SETUSERCODECOMPLETE
+    ifDebug("COMMAND ACCEPTED")
+    pauseExecution(3000)
+    composeKeyStrokes("#")
+}
+
+private setUserCodeComplete(){
+    ifDebug("setUserCodeSend")
+    state.programmingMode = ""
+    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
+    assert storedCodes instanceof Map
+    storedCodes.put((state.newCodePosition.toString()), [(state.newName):(state.newCode.toString())])
+    ifDebug("storedCodes: ${storedCodes}")
+    def json = new groovy.json.JsonBuilder(storedCodes)
+    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
+    state.newCode = ""
+    state.newCodePosition = ""
+    state.name = ""
+}
+
+private deleteUserCodeSend(){
+    ifDebug("deleteUserCodeSend")
+    state.programmingMode = DELETEUSERCOMPLETE
+    pauseExecution(3000)
+    composeKeyStrokes("#")
+}
+
+private deleteUserCodeComplete(){
+    ifDebug("deleteUserCodeComplete")
+    state.programmingMode = ""
+    def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
+    assert storedCodes instanceof Map
+
+    ifDebug("storedCodes: ${storedCodes}")
+    def selectedCode = storedCodes[state.newCodePosition]
+
+    ifDebug("Selected Code: ${selectedCode}")
+    storedCodes.remove(state.newCodePosition.toString())
+
+    def json = new groovy.json.JsonBuilder(storedCodes)
+    sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
+    state.newCode = ""
+    state.newCodePosition = ""
+    state.name = ""
+
+}
+
+private keypadLedState(ledState){
+    ifDebug("keypadLedState ${ledState}")
+     if (ledState == "82" && state.programmingMode == SETUSERCODEINITIALIZE){
+        ifDebug("${KEYPADLEDSTATE} ${state.programmingMode}")
+        state.programmingMode = SETUSERCODESEND
+        composeKeyStrokes(state.newCodePosition + state.newCode)
+    }
+    
+    if (ledState == "82" && state.programmingMode == DELETEUSERCODEINITIALIZE){
+        ifDebug("${KEYPADLEDSTATE} ${state.programmingMode}")
+        state.programmingMode = DELETEUSERCODE
+        composeKeyStrokes(state.newCodePosition + "*")
+    }
+
+    def ledBinary = Integer.toBinaryString(ledState as int)
+    def paddedBinary = ledBinary.padLeft(8, "0")
+    ifDebug("${paddedBinary}")
+
+    if (paddedBinary.substring(7,8) == "0"){
+        ifDebug("Partition Ready LED Off")        
+        
+    }
+
+    if (paddedBinary.substring(7,8) == "1"){
+        ifDebug("Partition Ready LED On")        
+    }
+
+    
+}
+
+private partitionArmedAway(){
+    ifDebug("partitionArmedAway")
+    sendEvent(name:"Status", value: PARTITIONARMEDAWAY)
+    sendEvent(name: "switch", value: "on")
+    if (state.armState.contains("home")){
+        systemArmedHome()
+    }else {
+        systemArmed()
+    }
+}
+
+private partitionArmedHome(){
+    ifDebug("partitionArmedHome")
+    sendEvent(name:"Status", value: PARTITIONARMEDHOME)
+    sendEvent(name: "switch", value: "on")
+    if (state.armState.contains("home")){
+        systemArmedHome()
+    }else {
+        systemArmed()
+    }
+}
+
+private zoneOpen(message){
     def zoneDevice
     def substringCount = message.size() - 3
     zoneDevice = getChildDevice("${device.deviceNetworkId}_${message.substring(substringCount).take(3)}")
@@ -459,7 +790,7 @@ def zoneOpen(message){
 
 }
 
-def zoneClosed(message){
+private zoneClosed(message){
     def zoneDevice
     def substringCount = message.size() - 3
     zoneDevice = getChildDevice("${device.deviceNetworkId}_${message.substring(substringCount).take(3)}")
@@ -478,29 +809,18 @@ def zoneClosed(message){
     }
 }
 
-def systemError(message){
+private systemError(message){
     def substringCount = message.size() - 3
     message = message.substring(4,message.size()).replaceAll('0', '') as int
     //message = message.substring(substringCount).take(3).replaceAll('0', '')
     logError("System Error: ${message} - ${errorCodes[(message)]}")
+
+    if (errorCodes[(message)] == "Receive Buffer Overrun"){
+        composeKeyStrokes("#")
+    }
 }
 
-def disarming(){
-	if (state.armState != "disarmed"){
-		ifDebug("disarming")
-		state.armState = "disarmed"
-		parent.unlockIt()
-		parent.switchItDisarmed()
-		parent.speakDisarmed()
-
-		if (location.hsmStatus != "disarmed")
-		{
-			sendLocationEvent(name: "hsmSetArm", value: "disarm")
-		}
-	}
-}
-
-def systemArmed(){
+private systemArmed(){
 	if (state.armState != "armed_away"){
 		ifDebug("Armed Away")
 		state.armState = "armed_away"
@@ -515,7 +835,7 @@ def systemArmed(){
 	}
 }
 
-def systemArmedHome(){
+private systemArmedHome(){
 	if (state.armState != "armed_home"){
 		ifDebug("Armed Home")
 		state.armState = "armed_home"
@@ -530,91 +850,24 @@ def systemArmedHome(){
 	}
 }
 
-def entryDelay(){
-	 ifDebug("entryDelay")
-		state.armState = "intrusion"
-		parent.speakEntryDelay()
-}
-
-def exitDelay(){
-	 ifDebug("exitDelay")
-		parent.speakExitDelay()
-}
-
-def alarming(){
-	 ifDebug("alarm")
-		state.armState = "alarming"
-		parent.speakAlarm()
-}
-
-def poll() {
-	ifDebug("Polling...")
-	def message = tpiCommands["Poll"]
-    sendMsg(message)
-}
-
-def sendCode(){
-    ifDebug("sendCode")
-    def sendMsg = tpiCommands["CodeSend"] + masterCode
-    ifDebug(sendMsg)
-    sendMsg(sendMsg)
-}
-
-private sendLogin(){
-	ifDebug("sendLogin: ${passwd}")
-    def cmdToSend =  tpiCommands["Login"] + "${passwd}"
-    def cmdArray = cmdToSend.toCharArray()
-    def cmdSum = 0
-    cmdArray.each { cmdSum += (int)it }
-    def chkSumStr = DataType.pack(cmdSum, 0x08)
-    if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
-    cmdToSend += chkSumStr
-    cmdToSend = cmdToSend + "\r\n"
-    sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
-}
-
-def sendMsg(String s) {
-    s = generateChksum(s)
-    ifDebug("sendMsg $s")
-	return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
-}
-
-def sendProgrammingMessage(String s){
-    s = generateChksum(s)
-    ifDebug("sendProgrammingMessage: ${s}")
-    def hubaction = new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET) 
-    sendHubCommand(hubaction);
-}
-
-// def specialArm(){
-//     ifDebug("specialArm")
-//     //TODO add speakIt
-// }
-
-// def specialDisarm(){
-//     ifDebug("specialDisarm")
-//     //TODO add speakIt
-// }
-
-
-def parseUser(message){
+private parseUser(message){
     ifDebug("parseUser")
     def length = message.size()
-    def userPosition = message.substring(4,length)
+    def userPosition = message.substring(6,length)
     ifDebug("${USEROPENING} - ${userPosition}" )
 
-    sendEvent(name:"Last Used Code Position", value: userPosition, displayed:false, isStateChange: true)
+    sendEvent(name:"Last Used Code Position", value: userPosition, displayed:true, isStateChange: true)
 
     def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
 	assert storedCodes instanceof Map
 
     ifDebug("storedCodes: ${storedCodes}")
-    def selectedCode = storedCodes[codePosition]
+    def selectedCode = storedCodes[userPosition as int]
 
     ifDebug("Selected Code: ${selectedCode}")
 
     if (selectedCode){
-        sendEvent(name:"Last Used Code", value: selectedCode.key, displayed:false, isStateChange: true)
+        sendEvent(name:"Last Used Code Name", value: selectedCode.key, displayed:true, isStateChange: true)
     }
 
     return userPosition
@@ -657,35 +910,11 @@ private removeChildDevices(delete) {
 	delete.each {deleteChildDevice(it.deviceNetworkId)}
 }
 
-def getReTry(Boolean inc){
+private getReTry(Boolean inc){
 	def reTry = (state.reTryCount ?: 0).toInteger()
 	if (inc) reTry++
 	state.reTryCount = reTry
 	return reTry
-}
-
-def telnetConnection(){
- 	telnetClose()
-	pauseExecution(5000)
-	try {
-		//open telnet connection
-		telnetConnect([termChars:[13,10]], ip, 4025, null, null)
-		runOnce(new Date(now() + 10000), StatusReport)
-	} catch(e) {
-		logError("initialize error: ${e.message}")
-	}
-}
-
-def telnetStatus(String status){
-	logError("telnetStatus- error: ${status}")
-	if (status != "receive error: Stream is closed"){
-		getReTry(true)
-		logError("Telnet connection dropped...")
-
-	} else {
-		logError("Telnet is restarting...")
-	}
-	runOnce(new Date(now() + 10000), telnetConnection)
 }
 
 private ifDebug(msg){
@@ -695,6 +924,10 @@ private ifDebug(msg){
 private logError(msg){
 	parent.logError('Connection Driver: ' + msg)
 }
+
+/***********************************************************************************************************************
+*   Variables
+*/
 
 @Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
 
@@ -821,6 +1054,14 @@ private logError(msg){
 @Field static final String APIFAULT = "API Command Syntax Error"
 @Field static final String LOGINPROMPT = "Send Login"
 
+@Field static final String SETUSERCODEINITIALIZE = "SETUSERCODEINITIALIZE"
+@Field static final String SETUSERCODESEND = "SETUSERCODESEND"
+@Field static final String SETUSERCODECOMPLETE = "SETUSERCODECOMPLETE"
+
+@Field static final String DELETEUSERCODEINITIALIZE = "DELETEUSERCODEINITIALIZE"
+@Field static final String DELETEUSERCODE = "DELETEUSERCODE"
+@Field static final String DELETEUSERCOMPLETE = "DELETEUSERCOMPLETE"
+
 @Field final Map 	tpiResponses = [
     500: COMMANDACCEPTED,
     501: COMMANDERROR,
@@ -942,15 +1183,17 @@ private logError(msg){
 
 /***********************************************************************************************************************
 * Version: 0.5
+*   Holistic Refactor
 *   Program User Codes
+*   Program Entry and Exit Delays
 *
 * Version: 0.4
 *   Arm/Disarm user and special parse
 * 
 * Version: 0.3.6
-* Fixed Initialization
-* Fixed Telnet Failed Routine
-* Fixed 'Backwards' Arm states
+*   Fixed Initialization
+*   Fixed Telnet Failed Routine
+*   Fixed 'Backwards' Arm states
 *
 * Version: 0.3.5
 *   Fixed regex matching for timestamps.
@@ -1000,6 +1243,7 @@ private logError(msg){
 *
 * Version: 0.12.1
 *	Spelling Error
+*
 * Version: 0.12.0
 *	Small State Fix for Motion
 *
