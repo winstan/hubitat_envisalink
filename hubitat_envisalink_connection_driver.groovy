@@ -79,7 +79,7 @@ metadata {
             delayOptions << ["090" : "90 seconds"]
             delayOptions << ["120" : "120 seconds"]
             input ("entry_delay1", "enum", title: "Entry Delay 1", options: delayOptions, defaultValue: 060)
-            input ("entry_delay2", "enum", title: "Extry Delay 2", options: delayOptions, defaultValue: 060)
+            input ("entry_delay2", "enum", title: "Entry Delay 2", options: delayOptions, defaultValue: 060)
             input ("exit_delay", "enum", title: "Exit Delay 2", options: delayOptions, defaultValue: 060)
         }
 
