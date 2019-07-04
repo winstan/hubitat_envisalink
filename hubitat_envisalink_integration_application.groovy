@@ -489,6 +489,7 @@ def hsmHandler(evt) {
 				if (evt.value && state.enableHSM)
 				{
 					ifDebug("HSM is enabled")
+					ifDebug("Current Status: ${getChildDevice(state.EnvisalinkDNI).currentValue("Status").contains("Armed")}")
 					if (!getChildDevice(state.EnvisalinkDNI).currentValue("Status").contains("Armed"))
 					{
 						switch(evt.value){
@@ -517,7 +518,7 @@ def hsmHandler(evt) {
 				{
 					ifDebug("HSM is enabled")
 					ifDebug("Sending Disarm")
-					if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready")
+					if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready" && getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Disarmed")
 					{
 						speakDisarming()
 						getChildDevice(state.EnvisalinkDNI).Disarm()
@@ -811,6 +812,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5
+*	Fix duplicate Disarm command caused by HSM
+*
 * Version: 0.4.1
 *	Using hasCommand, re-implement setVolumeSpeakAndRestore
 *
