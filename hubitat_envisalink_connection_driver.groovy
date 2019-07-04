@@ -234,9 +234,9 @@ def TogleTimeStamp(){
     composeTimeStampToggle()
 }
 
-def testParse(position){
-    parseUser("11111102")
-}
+// def testParse(position){
+//     parseUser("11111102")
+// }
 
 /***********************************************************************************************************************
 *   End Points
