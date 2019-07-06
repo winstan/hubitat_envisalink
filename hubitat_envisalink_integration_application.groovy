@@ -770,7 +770,7 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = "0.4"
+	state.version = "0.5"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
