@@ -69,7 +69,8 @@ def mainPage() {
             	input "envisalinkName", "text", title: "Envisalink Name", required: true, multiple: false, defaultValue: "Envisalink", submitOnChange: false
                 input "envisalinkIP", "text", title: "Envisalink IP Address", required: true, multiple: false, defaultValue: "", submitOnChange: false
                 input "envisalinkPassword", "text", title: "Envisalink Password", required: true, multiple: false, defaultValue: "", submitOnChange: false
-                input "envisalinkCode", "text", title: "Envisalink Disarm Code", required: true, multiple: false, defaultValue: "", submitOnChange: false
+                input "envisalinkMasterCode", "text", title: "Envisalink Master Code", required: true, multiple: false, defaultValue: "", submitOnChange: false
+				input "envisalinkInstallerCode", "text", title: "Envisalink Installer Code", description:"Installer Code is only required for programming Exit Delays", required: false, multiple: false, defaultValue: "", submitOnChange: false
             }
         }
 	 } else {
@@ -305,8 +306,8 @@ def editCodeMap(message) {
         }
 	}
     //ifDebug("editing ${message.deviceNetworkId}")
-    //state.allZones = getChildDevice(state.EnvisalinkDNI).getChildDevices()
-    //def zoneDevice = getChildDevice(state.EnvisalinkDNI).getChildDevice(message.deviceNetworkId)
+    //state.allZones = getEnvisalinkDevice().getChildDevices()
+    //def zoneDevice = getEnvisalinkDevice().getChildDevice(message.deviceNetworkId)
     //def paragraphText = ""
     //state.editedZoneDNI = message.deviceNetworkId;
     // if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}){
@@ -325,6 +326,8 @@ def editCodeMap(message) {
 
 def zoneMapsPage() {
     ifDebug("Showing zoneMapsPage")
+	def childDevices = getChildDevices()
+	ifDebug("getChildDevice: ${childDevices}")
     if (getChildDevices().size() == 0 && !state.envisalinkIntegrationInstalled)
     {
         createEnvisalinkParentDevice()
@@ -350,8 +353,7 @@ def zoneMapsPage() {
         }
 
        section("<h2>Existing Zones</h2>"){
-       		def deviceList = ""
-            getChildDevice(state.EnvisalinkDNI).getChildDevices().each{
+            getEnvisalinkDevice().getChildDevices().each{
                 href (name: "editZoneMapPage", title: "${it.label}",
                 description: "Zone Details",
                 params: [deviceNetworkId: it.deviceNetworkId],
@@ -378,8 +380,8 @@ def defineZoneMap() {
 def editZoneMapPage(message) {
     ifDebug("Showing editZoneMapPage")
     ifDebug("editing ${message.deviceNetworkId}")
-    state.allZones = getChildDevice(state.EnvisalinkDNI).getChildDevices()
-    def zoneDevice = getChildDevice(state.EnvisalinkDNI).getChildDevice(message.deviceNetworkId)
+    state.allZones = getEnvisalinkDevice().getChildDevices()
+    def zoneDevice = getEnvisalinkDevice().getChildDevice(message.deviceNetworkId)
     def paragraphText = ""
     state.editedZoneDNI = message.deviceNetworkId;
     if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}){
@@ -406,13 +408,14 @@ def clearStateVariables(){
 
 def createEnvisalinkParentDevice(){
  	ifDebug("Creating Parent Envisalink Device")
-    if (getChildDevice(state.EnvisalinkDNI) == null){
+    if (getEnvisalinkDevice() == null){
         state.EnvisalinkDNI = UUID.randomUUID().toString()
     	ifDebug("Setting state.EnvisalinkDNI ${state.EnvisalinkDNI}")
 	    addChildDevice("dwb", "Envisalink Connection", state.EnvisalinkDNI, null, [name: envisalinkName, isComponent: true, label: envisalinkName])
-        getChildDevice(state.EnvisalinkDNI).updateSetting("ip",[type:"text", value:envisalinkIP])
-    	getChildDevice(state.EnvisalinkDNI).updateSetting("passwd",[type:"text", value:envisalinkPassword])
-    	getChildDevice(state.EnvisalinkDNI).updateSetting("code",[type:"text", value:envisalinkCode])
+        getEnvisalinkDevice().updateSetting("ip",[type:"text", value:envisalinkIP])
+    	getEnvisalinkDevice().updateSetting("passwd",[type:"text", value:envisalinkPassword])
+    	getEnvisalinkDevice().updateSetting("masterCode",[type:"text", value:envisalinkMasterCode])
+		getEnvisalinkDevice().updateSetting("installerCode",[type:"text", value:envisalinkInstallerCode])
 		castEnvisalinkDeviceStates()
     }
 }
@@ -425,10 +428,12 @@ def castEnvisalinkDeviceStates(){
     ifDebug("Setting state.EnvisalinkIP ${state.EnvisalinkIP}")
     state.EnvisalinkPassword = envisalinkPassword
     ifDebug("Setting state.EnvisalinkPassword ${state.EnvisalinkPassword}")
-    state.EnvisalinkCode = envisalinkCode
+    state.EnvisalinkCode = envisalinkMasterCode
     ifDebug("Setting state.EnvisalinkCode ${state.EnvisalinkCode}")
-    if (getChildDevice(state.EnvisalinkDNI)){
-        ifDebug("Found a Child Envisalink ${getChildDevice(state.EnvisalinkDNI).label}")
+	state.EnvisalinkInstallerCode = envisalinkInstallerCode
+	ifDebug("Setting state.EnvisalinkInstallerCode ${state.envisalinkInstallerCode}")
+    if (getEnvisalinkDevice()){
+        ifDebug("Found a Child Envisalink ${getEnvisalinkDevice().label}")
     }
     else{
      	ifDebug("Did not find a Parent Envisalink")
@@ -456,12 +461,12 @@ def createZone(){
         deviceNetworkId = state.EnvisalinkDNI + "_M_" + formatted
     }
     ifDebug("Entered zoneNumber: ${zoneNumber} formatted as: ${formatted}")
-    getChildDevice(state.EnvisalinkDNI).createZone([zoneName: zoneName, deviceNetworkId: deviceNetworkId, zoneType: zoneType])
+    getEnvisalinkDevice().createZone([zoneName: zoneName, deviceNetworkId: deviceNetworkId, zoneType: zoneType])
     state.creatingZone = false;
 }
 
 def editZone(){
-    def childZone = getChildDevice(state.EnvisalinkDNI).getChildDevice(state.editedZoneDNI);
+    def childZone = getEnvisalinkDevice().getChildDevice(state.editedZoneDNI);
 	ifDebug("Starting validation of ${childZone.label}")
     ifDebug("Attempting rename of zone to ${newZoneName}")
     childZone.updateSetting("label",[type:"text", value:newZoneName])
@@ -483,30 +488,30 @@ def hsmHandler(evt) {
 	if (!lock)
 	{
 		lock = true
-		if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Exit Delay in Progress"
-			&& getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Entry Delay in Progress"
+		if (getEnvisalinkDevice().currentValue("Status") != "Exit Delay in Progress"
+			&& getEnvisalinkDevice().currentValue("Status") != "Entry Delay in Progress"
 		   	&& evt.value != "disarmed") {
 				if (evt.value && state.enableHSM)
 				{
 					ifDebug("HSM is enabled")
-					ifDebug("Current Status: ${getChildDevice(state.EnvisalinkDNI).currentValue("Status").contains("Armed")}")
-					if (!getChildDevice(state.EnvisalinkDNI).currentValue("Status").contains("Armed"))
+					ifDebug("Current Status: ${getEnvisalinkDevice().currentValue("Status").contains("Armed")}")
+					if (!getEnvisalinkDevice().currentValue("Status").contains("Armed"))
 					{
 						switch(evt.value){
 							case "armedAway":
 								ifDebug("Sending Arm Away")
 								speakArmingAway()
-								getChildDevice(state.EnvisalinkDNI).ArmAway()
+								getEnvisalinkDevice().ArmAway()
 							break
 							case "armedHome":
 								ifDebug("Sending Arm Home")
 								speakArmingHome()
-								getChildDevice(state.EnvisalinkDNI).ArmHome()
+								getEnvisalinkDevice().ArmHome()
 							break
 							case "armedNight":
 								ifDebug("Sending Arm Home")
 								speakArmingNight()
-								getChildDevice(state.EnvisalinkDNI).ArmHome()
+								getEnvisalinkDevice().ArmHome()
 							break
 						}
 					}
@@ -518,10 +523,10 @@ def hsmHandler(evt) {
 				{
 					ifDebug("HSM is enabled")
 					ifDebug("Sending Disarm")
-					if (getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Ready" && getChildDevice(state.EnvisalinkDNI).currentValue("Status") != "Disarmed")
+					if (getEnvisalinkDevice().currentValue("Status") != "Ready" && getEnvisalinkDevice().currentValue("Status") != "Disarmed")
 					{
 						speakDisarming()
-						getChildDevice(state.EnvisalinkDNI).Disarm()
+						getEnvisalinkDevice().Disarm()
 					}
 				}
 			}
@@ -738,7 +743,7 @@ def lockUseHandler(evt){
 			def foundCode = selectedLockCodes.find{it == lockCodeValue.code}
 			if (foundCode){
 				ifDebug("Found Lock Code")
-				getChildDevice(state.EnvisalinkDNI).Disarm()
+				getEnvisalinkDevice().Disarm()
 			}
     	}
 	}
@@ -770,7 +775,7 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = "0.5"
+	state.version = "0.5.1"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
@@ -780,6 +785,15 @@ private ifDebug(msg){
 
 private logError(msg){
     if (msg)  log.error 'Envisalink Integration: ' + msg
+}
+
+def getEnvisalinkDevice(){
+	ifDebug("getEnvisalinkDevice")
+	def childDevices = getChildDevices()
+	ifDebug("childDevices: ${childDevices}")
+	def envisalinkDevice = childDevices[0]
+	ifDebug("childDevices: ${envisalinkDevice}")
+	return envisalinkDevice
 }
 
 //General App Events
@@ -812,6 +826,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.1
+*	Fix child device variable mix up
+*
 * Version: 0.5
 *	Fix duplicate Disarm command caused by HSM
 *

@@ -59,7 +59,7 @@ metadata {
 	preferences {
 		input("ip", "text", title: "IP Address",  required: true)
         input("passwd", "text", title: "Password", required: true)
-        input("masterCode", "text", title: "Master Code is required", required: true)
+        input("masterCode", "text", title: "Master Code", required: true)
         input("installerCode", "text", title: "Installer Code", description: "Installer Code is required if you wish to program the panel from this driver", required: false)
 		def pollRate = [:]
 		pollRate << ["0" : "Disabled"]
