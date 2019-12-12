@@ -701,7 +701,7 @@ private keypadLedState(ledState){
         composeKeyStrokes(state.newCodePosition + "*")
     }
 
-    def ledBinary = Integer.toBinaryString(ledState as int)
+    def ledBinary = Integer.toBinaryString(hubitat.helper.HexUtils.HexStringToInt(ledState))
     def paddedBinary = ledBinary.padLeft(8, "0")
     ifDebug("${paddedBinary}")
 
@@ -1188,6 +1188,8 @@ private zoneClosed(message){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.6
+*   Fix LED State, Thanks cybrmage
 * Version: 0.5
 *   Holistic Refactor
 *   Program User Codes
