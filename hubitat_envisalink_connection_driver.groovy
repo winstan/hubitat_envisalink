@@ -701,7 +701,7 @@ private keypadLedState(ledState){
         composeKeyStrokes(state.newCodePosition + "*")
     }
 
-    def ledBinary = Integer.toBinaryString(hubitat.helper.HexUtils.HexStringToInt(ledState))
+    def ledBinary = Integer.toBinaryString(hubitat.helper.HexUtils.hexStringToInt(ledState))
     def paddedBinary = ledBinary.padLeft(8, "0")
     ifDebug("${paddedBinary}")
 
