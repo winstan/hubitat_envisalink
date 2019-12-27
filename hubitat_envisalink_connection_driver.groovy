@@ -524,6 +524,7 @@ def parse(String message) {
         }
 
         if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
+            state.armState = "armed_home"
             partitionArmedHome()
         }
     }
@@ -1188,6 +1189,8 @@ private zoneClosed(message){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.7
+*   Override armState if panel sends Armed Home
 * Version: 0.6
 *   Fix LED State, Thanks cybrmage
 * Version: 0.5
