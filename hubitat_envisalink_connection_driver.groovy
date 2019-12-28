@@ -28,62 +28,65 @@
 import groovy.transform.Field
 
 metadata {
-	definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
-		capability "Initialize"
-		capability "Telnet"
-		capability "Alarm"
-        capability "Switch"
-        capability "Actuator"
-		capability "Polling"
-        command "sendTelnetCommand", ["String"]
-        command "StatusReport"
-        command "ArmAway"
-        command "ArmHome"
-        //command "ArmAwayZeroEntry"
-        //command "SoundAlarm"
-        command "Disarm"
-        command "ChimeToggle"
-        command "ToggleTimeStamp"
-		command "poll"
-        command "setUserCode", ["String", "Number", "Number"]
-        command "deleteUserCode", ["Number"]
-        command "configureZone", ["Number", "Number"]
-        command "testParse", ["String"]
+		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
+				capability "Initialize"
+				capability "Telnet"
+				capability "Alarm"
+				capability "Switch"
+				capability "Actuator"
+				capability "Polling"
+				command "sendTelnetCommand", ["String"]
+				command "StatusReport"
+				command "ArmAway"
+				command "ArmHome"
+				//command "ArmAwayZeroEntry"
+				//command "SoundAlarm"
+				command "Disarm"
+				command "ChimeToggle"
+				command "ToggleTimeStamp"
+				command "poll"
+				command "setUserCode", ["String", "Number", "Number"]
+				command "deleteUserCode", ["Number"]
+				command "configureZone", ["Number", "Number"]
+				command "testParse", ["String"]
 
-        attribute   "Status", "string"
-        attribute   "Codes", "json"
-        attribute   "LastUsedCodePosition", "string"
-        attribute   "LastUsedCodeName", "string"
-	}
+				attribute   "Status", "string"
+				attribute   "Codes", "json"
+				attribute   "LastUsedCodePosition", "string"
+				attribute   "LastUsedCodeName", "string"
+		}
 
-	preferences {
-		input("ip", "text", title: "IP Address",  required: true)
-        input("passwd", "text", title: "Password", required: true)
-        input("masterCode", "text", title: "Master Code", required: true)
-        input("installerCode", "text", title: "Installer Code", description: "Installer Code is required if you wish to program the panel from this driver", required: false)
-		def pollRate = [:]
-		pollRate << ["0" : "Disabled"]
-		pollRate << ["1" : "Poll every minute"]
-		pollRate << ["5" : "Poll every 5 minutes"]
-		pollRate << ["10" : "Poll every 10 minutes"]
-		pollRate << ["15" : "Poll every 15 minutes"]
-		pollRate << ["30" : "Poll every 30 minutes (not recommended)"]
-		input ("poll_Rate", "enum", title: "Device Poll Rate", options: pollRate, defaultValue: 0)
+		preferences {
+				def PanelTypes = [:]
+				PanelTypes << ["0" : "DSC"]
+				PanelTypes << ["1" : "Vista"]
+				input ("PanelType", "enum", title: "Panel Type", options: PanelTypes, defaultValue: 0)
+				input("ip", "text", title: "IP Address",  required: true)
+				input("passwd", "text", title: "Password", required: true)
+				input("masterCode", "text", title: "Master Code", required: true)
+				input("installerCode", "text", title: "Installer Code", description: "Installer Code is required if you wish to program the panel from this driver", required: false)
+				def pollRate = [:]
+				pollRate << ["0" : "Disabled"]
+				pollRate << ["1" : "Poll every minute"]
+				pollRate << ["5" : "Poll every 5 minutes"]
+				pollRate << ["10" : "Poll every 10 minutes"]
+				pollRate << ["15" : "Poll every 15 minutes"]
+				pollRate << ["30" : "Poll every 30 minutes (not recommended)"]
+				input ("poll_Rate", "enum", title: "Device Poll Rate", options: pollRate, defaultValue: 0)
 
-        if (installerCode)
-        {
-            def delayOptions = [:]
-            delayOptions << ["030" : "30 seconds"]
-            delayOptions << ["045" : "45 seconds"]
-            delayOptions << ["060" : "60 seconds"]
-            delayOptions << ["090" : "90 seconds"]
-            delayOptions << ["120" : "120 seconds"]
-            input ("entry_delay1", "enum", title: "Entry Delay 1", options: delayOptions, defaultValue: 060)
-            input ("entry_delay2", "enum", title: "Entry Delay 2", options: delayOptions, defaultValue: 060)
-            input ("exit_delay", "enum", title: "Exit Delay 2", options: delayOptions, defaultValue: 060)
-        }
-
-	}
+				if (installerCode) {
+						def delayOptions = [:]
+						delayOptions << ["030" : "30 seconds"]
+						delayOptions << ["045" : "45 seconds"]
+						delayOptions << ["060" : "60 seconds"]
+						delayOptions << ["090" : "90 seconds"]
+						delayOptions << ["120" : "120 seconds"]
+						input ("entry_delay1", "enum", title: "Entry Delay 1", options: delayOptions, defaultValue: 060)
+						input ("entry_delay2", "enum", title: "Entry Delay 2", options: delayOptions, defaultValue: 060)
+						input ("exit_delay", "enum", title: "Exit Delay 2", options: delayOptions, defaultValue: 060)
+				}
+		}
+	
 }
 
 /***********************************************************************************************************************
@@ -137,7 +140,7 @@ def initialize() {
 }
 
 def uninstalled() {
-    telnetClose()
+	telnetClose()
 	removeChildDevices(getChildDevices())
 }
 
@@ -243,15 +246,28 @@ def TogleTimeStamp(){
 */
 
 def createZone(zoneInfo){
-    log.info "Creating ${zoneInfo.zoneName} with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType}"
+    log.info "Creating ${zoneInfo.zoneName} with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType} for panel type: " + PanelType
     def newDevice
     if (zoneInfo.zoneType == "0")
     {
     	addChildDevice("hubitat", "Virtual Contact Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])
+      newDevice = getChildDevice(zoneInfo.deviceNetworkId)
+      if(PanelType as int == 1) {
+      	// Vista does not report motion sensor inactive... make it automatic
+       	log.info("Setting autoInactive for Virtual Contact Sensor for Vista Panel")
+      	newDevice.updateSetting("autoInactive",[type:"enum", value:"60"])
+      }
+
     } else {
      	addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneName])
         newDevice = getChildDevice(zoneInfo.deviceNetworkId)
-        newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
+        if(PanelType as int == 0) {
+        	newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
+        } else {
+        	// Vista does not report motion sensor inactive... make it automatic
+        	log.info("Setting autoInactive for Virtual Motion Sensor for Vista Panel")
+        	newDevice.updateSetting("autoInactive",[type:"enum", value:"60"])
+        }
     }
 
 }
@@ -267,19 +283,26 @@ def removeZone(zoneInfo){
 private composeArmAway(){
     ifDebug("composeArmAway")
     def message = tpiCommands["ArmAway"]
-    sendTelnetCommand(message)
+    if(PanelType as int == 1) {
+    	message = masterCode + "2"
+    }
+	  sendTelnetCommand(message)
 }
 
 private composeArmHome(){
     ifDebug("composeArmHome")
     state.armState = "arming_home"
     def message = tpiCommands["ArmHome"]
+    if(PanelType as int == 1) {
+    	message = masterCode + "3"
+    }
     sendTelnetCommand(message)
 }
 
 private composeChimeToggle(){
     ifDebug("composeChimeToggle")
     def message = tpiCommands["ToggleChime"]
+    if(PanelType as int == 1) { message = masterCode + "9" }
     sendTelnetCommand(message)
 }
 
@@ -296,7 +319,14 @@ private composeExitInstallerMode(){
 private composeDisarm(){
     ifDebug("composeDisarm")
     def message = tpiCommands["Disarm"] + masterCode
+    if(PanelType as int == 1) {
+    	message = masterCode + "1"
+		}
     sendTelnetCommand(message)
+    if(PanelType as int == 1) {
+    	// work around disarm bug in Vista panels
+	    sendTelnetCommand(message)
+		}
 }
 
 private composeDeleteUserCode(position){
@@ -311,55 +341,77 @@ private composeDeleteUserCode(position){
 
 private composeInstallerCode(){
     ifDebug("composeInstallerCode")
-    def sendTelnetCommand = tpiCommands["CodeSend"] + installerCode
-    ifDebug(sendTelnetCommand)
-    sendTelnetCommand(sendTelnetCommand)
+    if(PanelType as int == 0) {
+	    def sendTelnetCommand = tpiCommands["CodeSend"] + installerCode
+	    ifDebug(sendTelnetCommand)
+	    sendTelnetCommand(sendTelnetCommand)
+	  } else {
+			ifDebug("Not supported by Vista TPI")
+	  }
 }
 
 private composeKeyStrokes(data){
     ifDebug("composeKeyStrokes: ${data}")
-    sendMessage = tpiCommands["SendKeyStroke"]
+    if(PanelType as int == 0) {
+	    sendMessage = tpiCommands["SendKeyStroke"]
+	  } else { sendMessage = "" }
     sendProgrammingMessage(sendMessage + data)
 }
 
 private composeMasterCode(){
     ifDebug("composeMasterCode")
-    def sendTelnetCommand = tpiCommands["CodeSend"] + masterCode
-    ifDebug(sendTelnetCommand)
-    sendTelnetCommand(sendTelnetCommand)
+    if(PanelType as int == 0) {
+	    def sendTelnetCommand = tpiCommands["CodeSend"] + masterCode
+	    ifDebug(sendTelnetCommand)
+	    sendTelnetCommand(sendTelnetCommand)
+	  } else {
+			ifDebug("Not supported by Vista TPI")
+	  }
 }
 
 private composePoll(){
     ifDebug("composePoll")
-    def message = tpiCommands["Poll"]
-    sendTelnetCommand(message)
+    if(PanelType as int == 0) {
+    	def message = tpiCommands["Poll"]
+    	sendTelnetCommand(message)
+    } else {
+    	sendTelnetCommand("^0,\$")
+    }
 }
 
 private composeStatusReport(){
-    ifDebug("composeChimeToggle")
-    sendTelnetCommand(tpiCommands["StatusReport"])
+    ifDebug("composeStatusReport")
+    if(PanelType as int == 0) {
+	    sendTelnetCommand(tpiCommands["StatusReport"])
+    } else {
+    	ifDebug("Not supported by Vista TPI")
+    }
 }
 
 private composeSetUserCode(name, position, code){
     ifDebug("composeSetUserCode")
-    state.programmingMode = SETUSERCODE
-    ifDebug("Current Codes: ${device.currentValue("Codes")}")
-    if (!device.currentValue("Codes")){
-        def tempMap = [:]
-        def tempJson = new groovy.json.JsonBuilder(tempMap)
-         sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
-    }
-    def codePosition = position.toString()
-    codePosition = codePosition.padLeft(2, "0")
-    def newCode = code.toString()
-    newCode = newCode.padLeft(4, "0")
-    ifDebug("padded: ${codePosition} ${newCode}")
+    if(PanelType as int == 0) {
+	    state.programmingMode = SETUSERCODE
+  	  ifDebug("Current Codes: ${device.currentValue("Codes")}")
+  	  if (!device.currentValue("Codes")){
+    	    def tempMap = [:]
+      	  def tempJson = new groovy.json.JsonBuilder(tempMap)
+      	   sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
+    	}
+    	def codePosition = position.toString()
+    	codePosition = codePosition.padLeft(2, "0")
+    	def newCode = code.toString()
+    	newCode = newCode.padLeft(4, "0")
+    	ifDebug("padded: ${codePosition} ${newCode}")
 
-    state.newCode = newCode
-    state.newCodePosition = codePosition
-    state.newName = name
-    state.programmingMode = SETUSERCODEINITIALIZE
-    composeKeyStrokes("*5" + masterCode)
+    	state.newCode = newCode
+    	state.newCodePosition = codePosition
+    	state.newName = name
+    	state.programmingMode = SETUSERCODEINITIALIZE
+    	composeKeyStrokes("*5" + masterCode)
+    } else {
+    	ifDebug("Not supported by Vista TPI")
+    }
 }
 
 private composeSetDelays(entry, entry2, exit){
@@ -387,15 +439,21 @@ private composeSetDelays(entry, entry2, exit){
 }
 
 private composeTimeStampToggle(){
-    def message
-    if (state.timeStampOn)
-    {
-    	message = tpiCommands["TimeStampOn"]
+    if(PanelType as int == 0) {
+    	ifDebug("composeTimeStampToggle")
+
+	    def message
+	    if (state.timeStampOn)
+	    {
+	    	message = tpiCommands["TimeStampOn"]
+	    }
+	    else{
+	     	message = tpiCommands["TimeStampOff"]
+	    }
+	    sendTelnetCommand(message)
+    } else {
+    	ifDebug("Not supported by Vista TPI")
     }
-    else{
-     	message = tpiCommands["TimeStampOff"]
-    }
-    sendTelnetCommand(message)
 }
 
 private composeZoneConfiguration(zonePosition, zoneDefinition){
@@ -406,7 +464,42 @@ private composeZoneConfiguration(zonePosition, zoneDefinition){
 private composeZeroEntryDelayArm(){
     ifDebug("composeZeroEntryDelayArm")
     def message = tpiCommands["ArmAwayZeroEntry"]
+    if(PanelType as int == 1) {
+    	// equivilent to Arm Stay Instant
+    	message = masterCode + "7"
+    }
     sendTelnetCommand(message)
+}
+
+private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
+	def flags = [
+		ARMED_STAY: (flagBitMask & 0x8000) && true,
+		LOW_BATTERY: (flagBitMask & 0x4000) && true,
+		FIRE_ALARM: (flagBitMask & 0x2000) && true,
+		READY: (flagBitMask & 0x1000) && true,
+		UNUSED_1: (flagBitMask & 0x0800) && true,
+		UNUSED_2: (flagBitMask & 0x0400) && true,
+		CHECK_ZONE: (flagBitMask & 0x0200) && true,
+		ALARM_FIRE: (flagBitMask & 0x0100) && true,
+		ENTRY_DELAY_OFF: (flagBitMask & 0x0080) && true,
+		PROGRAMMING_MODE: (flagBitMask & 0x0040) && true,
+		CHIME_MODE: (flagBitMask & 0x0020) && true,
+		BYPASSED: (flagBitMask & 0x0010) && true,
+		AC_PRESENT: (flagBitMask & 0x0008) && true,
+		ARMED_AWAY: (flagBitMask & 0x0004) && true,
+		ALARM_MEMORY: (flagBitMask & 0x0002) && true,
+		ALARM: (flagBitMask & 0x0001) && true,
+		PERIMETER_ONLY: (flagBeep & 0x10) && true,
+		BEEP: (flagBeep & 0x0F) && true,
+		EXIT_DELAY_ACTIVE: (alphaDisplay.compareToIgnoreCase("you may exit    ") == 0) && true,
+		ENTRY_DELAY_ACTIVE: (alphaDisplay.compareToIgnoreCase("or alarm occurs ") == 0) && true
+	]
+
+	if (alphaDisplay.compareToIgnoreCase("alarm canceled  ") == 0) { flags.ALARM_MEMORY = true }
+	if (flagBeep == 5) { flags.EXIT_DELAY_ACTIVE = true }
+
+	return flags	
+
 }
 
 /***********************************************************************************************************************
@@ -414,11 +507,13 @@ private composeZeroEntryDelayArm(){
 */
 
 def parse(String message) {
+    log.info("Parsing Incoming message: [" + message + "]")
+
+	//ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
+    ifDebug("Panel Type: " + PanelType)
+
+  if(PanelType as int == 0) {
     message = preProcessMessage(message)
-    ifDebug("Parsing Incoming message: " + message)
-
-	ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
-
     if(tpiResponses[message.take(3) as int] == COMMANDACCEPTED) {
         if (state.programmingMode == SETUSERCODESEND){
             setUserCodeSend()
@@ -542,25 +637,156 @@ def parse(String message) {
 
     if(tpiResponses[message.take(3) as int] == SPECIALOPENING){
     }
+  } else {
+    log.info("Processing VISTA message: ")
+    if(message.take(6) == "Login:") {
+	    log.info("Received Login: request")
+      loginPrompt()
+    }
 
+    if(message.take(6) == "FAILED") {
+      logError(PASSWORDINCORRECT)
+    }
+
+    if(message.take(2) == "OK") {
+      ifDebug(LOGINSUCCESSFUL)
+    }
+
+    if(message.take(2) == "Timed Out!") {
+      logError(LOGINTIMEOUT)
+    }
+
+
+    if(message.take(3) == "%00") {
+	    log.info("Received %00 (Keypad Update) message")
+	    // [%00,01,1C08,08,00,****DISARMED****  Ready to Arm  $]
+	    def mPartition = message[4..5]
+	    def mFlags = Integer.parseInt(message[7..10],16)
+	    def mUserOrZone = message[12..13]
+	    def mChime = message[15..16]
+	    mChime = mChime.isInteger() ? (mChime as int) : 0
+	    def mDisplay = message[18..49]
+	    def vistaFlags = parseVistaFlags(mFlags,mChime,mDisplay)
+	    log.info("Vista FLAGS = " + vistaFlags.inspect())
+	    
+	    if ( vistaFlags.READY ) { partitionReady() }
+	    if ( vistaFlags.ARMED_AWAY ) { partitionArmedAway() }
+	    if ( vistaFlags.ARMED_STAY ) { partitionArmedHome() }
+	    if ( vistaFlags.ALARM || vistaFlags.ALARM_FIRE || vistaFlags.FIRE_ALARM ) { partitionAlarm() }
+	    if ( mDisplay.startsWith("FAULT") ) {
+					log.info("     Keypad Update: Zone " + mUserOrZone + " Tripped!")
+					zoneOpen("000" + mUserOrZone.toString())
+	    }
+	    if ( mDisplay.startsWith("BYPAS") ) {
+					log.info("     Keypad Update: Zone " + mUserOrZone + " Bypassed!")
+	    }
+	    if ( mDisplay.startsWith("CHECK") ) {
+					log.info("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
+	    }
+	    if ( mDisplay.startsWith("TRBL") ) {
+					log.info("     Keypad Update: Zone " + mUserOrZone + " TROUBLE notification!")
+	    }
+	    
+    }
+    if(message.take(3) == "%01") {
+	    log.info("Received %01 (Zone State Change) message")
+	    def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
+	    log.info("         Zone State Change: Zone String [" + ZoneState + "]")
+			for (i = 1; i <65; i++) {
+				if ( ZoneState & (2**(i-1)) ) {
+					log.info("     Zone State Change: Zone " + i + " Tripped!")
+					zoneOpen("000" + i.toString())
+				} else {
+					zoneClosed("000" + i.toString())
+				}
+			}
+    }
+    if(message.take(3) == "%02") {
+	    log.info("Received %02 (Partition State Change) message")
+ 			def p1Status = Integer.parseInt(message[4..5])
+ 			def p2Status = Integer.parseInt(message[6..7])
+ 			def p3Status = Integer.parseInt(message[8..9])
+ 
+			def partitionStates = [
+				0:"Partition is not Used/Doesn't Exist",
+				1:"Ready",
+				2:"Ready to Arm (Zones are Bypasses)",
+				3:"Not Ready",
+				4:"Armed in Stay Mode",
+				5:"Armed in Away Mode",
+				6:"Armed Maximum (Armed in Stay Mode - Zero Entry Delay)",
+				7:"Exit Delay",
+				8:"Partition is in Alarm",
+				9:"Alarm Has Occurred (Alarm in Memory)"
+			]
+			log.info("        Partition 1: " + partitionStates[p1Status])
+			log.info("        Partition 2: " + partitionStates[p2Status])
+			log.info("        Partition 3: " + partitionStates[p3Status])
+			if (p1Status == 1) {
+				partitionReady()
+			}
+			if (p1Status == 2) {
+				partitionReady()
+			}
+			if (p1Status == 3) {
+				partitionNotReady()
+			}
+			if (p1Status == 4) {
+				partitionArmedHome()
+			}
+			if (p1Status == 5) {
+				partitionArmedAway()
+			}
+			if (p1Status == 6) {
+				partitionArmedHome()
+			}
+			if (p1Status == 7) {
+				exitDelay()
+			}
+			if (p1Status == 8) {
+				partitionAlarm()
+			}
+			
+ 
+    }
+    if(message.take(3) == "%03") {
+	    log.info("Received %03 (Realtime CID Event) message")
+	    def Qualifier = message[4]
+	    def CID = message[5..7]
+	    def Partition = message[8..9]
+	    def ZoneOrUser = message[10..12]
+	    log.info("  Q: [" + Qualifier +"] CID: [" + CID + "] Partition: [" + Partition + "] Zone/User: [" + ZoneOrUser + "]")
+    }
+    if(message.take(3) == "%FF") {
+	    log.info("Received %FF (Zone Timer Dump) message")
+    }
+
+
+
+  }
 }
 
 private sendTelnetLogin(){
-	ifDebug("sendTelnetLogin: ${passwd}")
-    def cmdToSend =  tpiCommands["Login"] + "${passwd}"
+	log.info("sendTelnetLogin: ${passwd}")
+  def cmdToSend =  "${passwd}"
+	if(PanelType as int == 0) {
+    cmdToSend =  tpiCommands["Login"] + "${passwd}"
     def cmdArray = cmdToSend.toCharArray()
     def cmdSum = 0
     cmdArray.each { cmdSum += (int)it }
     def chkSumStr = DataType.pack(cmdSum, 0x08)
     if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
     cmdToSend += chkSumStr
-    cmdToSend = cmdToSend + "\r\n"
-    sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
+  }
+  cmdToSend = cmdToSend + "\r\n"
+  sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
 }
 
 private sendTelnetCommand(String s) {
+	if(PanelType as int == 0) {
     s = generateChksum(s)
-    ifDebug("sendTelnetCommand $s")
+  }
+  ifDebug("sendTelnetCommand $s")
 	return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
 }
 
@@ -675,7 +901,7 @@ private ifDebug(msg){
 }
 
 private loginPrompt(){
-    ifDebug("loginPrompt")
+    log.info("loginPrompt")
     sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
     ifDebug("Connection to Envisalink established")
     state.reTryCount = 0
@@ -1189,6 +1415,8 @@ private zoneClosed(message){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8
+*   Vista (Honeywell) support
 * Version: 0.7
 *   Override armState if panel sends Armed Home
 * Version: 0.6

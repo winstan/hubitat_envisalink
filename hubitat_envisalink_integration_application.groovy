@@ -66,6 +66,8 @@ def mainPage() {
 			showTitle()
  			section("Define your Envisalink device") {
                 clearStateVariables()
+              input "PanelType", "enum", title: "Alarm Panel Type", required: true, multiple: false,
+                options: [[0:"DSC"],[1:"Vista"]]
             	input "envisalinkName", "text", title: "Envisalink Name", required: true, multiple: false, defaultValue: "Envisalink", submitOnChange: false
                 input "envisalinkIP", "text", title: "Envisalink IP Address", required: true, multiple: false, defaultValue: "", submitOnChange: false
                 input "envisalinkPassword", "text", title: "Envisalink Password", required: true, multiple: false, defaultValue: "", submitOnChange: false
@@ -412,6 +414,7 @@ def createEnvisalinkParentDevice(){
         state.EnvisalinkDNI = UUID.randomUUID().toString()
     	ifDebug("Setting state.EnvisalinkDNI ${state.EnvisalinkDNI}")
 	    addChildDevice("dwb", "Envisalink Connection", state.EnvisalinkDNI, null, [name: envisalinkName, isComponent: true, label: envisalinkName])
+        getEnvisalinkDevice().updateSetting("PanelType",[type:"enum", value:PanelType])
         getEnvisalinkDevice().updateSetting("ip",[type:"text", value:envisalinkIP])
     	getEnvisalinkDevice().updateSetting("passwd",[type:"text", value:envisalinkPassword])
     	getEnvisalinkDevice().updateSetting("masterCode",[type:"text", value:envisalinkMasterCode])
@@ -422,6 +425,8 @@ def createEnvisalinkParentDevice(){
 
 def castEnvisalinkDeviceStates(){
   	ifDebug("Casting to State Variables")
+    state.PanelType = PanelType
+    ifDebug("Setting state.PanelType ${state.PanelType}")
     state.EnvisalinkDeviceName = envisalinkName
     ifDebug("Setting state.EnvisalinkDeviceName ${state.EnvisalinkDeviceName}")
     state.EnvisalinkIP = envisalinkIP
@@ -826,6 +831,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.6
+*	Vista (Honeywell) support
+*
 * Version: 0.5.1
 *	Fix child device variable mix up
 *
