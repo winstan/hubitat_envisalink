@@ -321,14 +321,14 @@ private composeExitInstallerMode(){
 
 private composeDisarm(){
     ifDebug("composeDisarm")
-    def message = tpiCommands["Disarm"] + masterCode
-    if(PanelType as int == 1) {
-    	message = masterCode + "1"
-    }
-    sendTelnetCommand(message)
-    if(PanelType as int == 1) {
-    	// work around disarm bug in Vista panels
-	    sendTelnetCommand(message)
+    if (PanelType as int == 0){
+        def message = tpiCommands["Disarm"] + masterCode
+        sendTelnetCommand(message)
+    } else {
+    	def message = masterCode + "1"
+         sendTelnetCommand(message)
+        // work around disarm bug in Vista panels
+         sendTelnetCommand(message)
     }
 }
 
@@ -1421,7 +1421,7 @@ private zoneClosed(message){
 * Version: 0.8.1
 *   Fix logging
 *   Fix panel type initialization
-*   Fix ...
+*   Fix Disarm bug for DSC
 * Version: 0.8
 *   Vista (Honeywell) support
 * Version: 0.7
