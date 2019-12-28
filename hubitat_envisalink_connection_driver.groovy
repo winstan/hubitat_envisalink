@@ -137,6 +137,9 @@ def updated() {
 def initialize() {
    runIn(5, "telnetConnection")
    state.programmingMode = ""
+   if (PanelType == null){
+       PanelType = 0
+   }
 }
 
 def uninstalled() {
@@ -321,12 +324,12 @@ private composeDisarm(){
     def message = tpiCommands["Disarm"] + masterCode
     if(PanelType as int == 1) {
     	message = masterCode + "1"
-		}
+    }
     sendTelnetCommand(message)
     if(PanelType as int == 1) {
     	// work around disarm bug in Vista panels
 	    sendTelnetCommand(message)
-		}
+    }
 }
 
 private composeDeleteUserCode(position){
@@ -507,140 +510,138 @@ private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
 */
 
 def parse(String message) {
-    log.info("Parsing Incoming message: [" + message + "]")
-
+    ifDebug("Parsing Incoming message: [" + message + "]")
 	//ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
-    ifDebug("Panel Type: " + PanelType)
+    if(PanelType as int == 0) {
+        message = preProcessMessage(message)
+        if(tpiResponses[message.take(3) as int] == COMMANDACCEPTED) {
+            if (state.programmingMode == SETUSERCODESEND){
+                setUserCodeSend()
+            }
 
-  if(PanelType as int == 0) {
-    message = preProcessMessage(message)
-    if(tpiResponses[message.take(3) as int] == COMMANDACCEPTED) {
-        if (state.programmingMode == SETUSERCODESEND){
-            setUserCodeSend()
+            if (state.programmingMode == SETUSERCODECOMPLETE){
+                setUserCodeComplete()
+            }
+
+            if (state.programmingMode == DELETEUSERCODE){
+                deleteUserCodeSend()
+            }
+            
+            if (state.programmingMode == DELETEUSERCOMPLETE){
+                deleteUserCodeComplete()
+            }
+        } 
+
+
+        if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
+            systemError(message)
         }
 
-        if (state.programmingMode == SETUSERCODECOMPLETE){
-            setUserCodeComplete()
+        if(tpiResponses[message.take(3) as int] == KEYPADLEDSTATE) {
+            keypadLedState(message.substring(3,message.size()))
         }
 
-        if (state.programmingMode == DELETEUSERCODE){
-            deleteUserCodeSend()
-        }
-        
-        if (state.programmingMode == DELETEUSERCOMPLETE){
-            deleteUserCodeComplete()
-        }
-    } 
-
-
-    if(tpiResponses[message.take(3) as int] == SYSTEMERROR) {
-        systemError(message)
-    }
-
-    if(tpiResponses[message.take(3) as int] == KEYPADLEDSTATE) {
-        keypadLedState(message.substring(3,message.size()))
-    }
-
-    if(tpiResponses[message.take(3) as int] == CODEREQUIRED) {
-        composeMasterCode()
-    }
-
-    if(tpiResponses[message.take(3) as int] == MASTERCODEREQUIRED) {
-        composeMasterCode()
-    }
-
-    if(tpiResponses[message.take(3) as int] == INSTALLERSCODEREQUIRED) {
-        composeInstallerCode()
-    }
-
-    if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
-        zoneOpen(message)
-    }
-
-    if(tpiResponses[message.take(3) as int] == ZONERESTORED) {
-        zoneClosed(message)
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
-        partitionReady()
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
-        partitionNotReady()
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
-        partitionReadyForForcedArmEnabled()
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
-        partitionAlarm()
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
-        partitionDisarmed()
-    }
-
-    if(tpiResponses[message.take(3) as int] == EXITDELAY) {
-        exitDelay()
-    }
-
-    if(tpiResponses[message.take(3) as int] == ENTRYDELAY) {
-        entryDelay()
-    }
-
-    if(tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
-        keypadLockout()
-    }
-
-    if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
-        if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
-            loginPrompt()
+        if(tpiResponses[message.take(3) as int] == CODEREQUIRED) {
+            composeMasterCode()
         }
 
-        if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
-            logError(PASSWORDINCORRECT)
+        if(tpiResponses[message.take(3) as int] == MASTERCODEREQUIRED) {
+            composeMasterCode()
         }
 
-        if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
-            ifDebug(LOGINSUCCESSFUL)
+        if(tpiResponses[message.take(3) as int] == INSTALLERSCODEREQUIRED) {
+            composeInstallerCode()
         }
 
-        if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
-            logError(LOGINTIMEOUT)
+        if(tpiResponses[message.take(3) as int] == ZONEOPEN) {
+            zoneOpen(message)
         }
 
-    }
-
-    if(tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
-
-        if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
-            partitionArmedAway()
+        if(tpiResponses[message.take(3) as int] == ZONERESTORED) {
+            zoneClosed(message)
         }
 
-        if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
-            state.armState = "armed_home"
-            partitionArmedHome()
+        if(tpiResponses[message.take(3) as int] == PARTITIONREADY) {
+            partitionReady()
         }
-    }
 
-    if(tpiResponses[message.take(3) as int] == USEROPENING){
-        parseUser(message)
-    }
+        if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
+            partitionNotReady()
+        }
 
-    if(tpiResponses[message.take(3) as int] == USERCLOSING){
-        parseUser(message)
-    }
+        if(tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
+            partitionReadyForForcedArmEnabled()
+        }
 
-    if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
-    }
+        if(tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
+            partitionAlarm()
+        }
 
-    if(tpiResponses[message.take(3) as int] == SPECIALOPENING){
-    }
+        if(tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
+            partitionDisarmed()
+        }
+
+        if(tpiResponses[message.take(3) as int] == EXITDELAY) {
+            exitDelay()
+        }
+
+        if(tpiResponses[message.take(3) as int] == ENTRYDELAY) {
+            entryDelay()
+        }
+
+        if(tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
+            keypadLockout()
+        }
+
+        if(tpiResponses[message.take(3) as int] == LOGININTERACTION) {
+            if(tpiResponses[message.take(4) as int] == LOGINPROMPT) {
+                loginPrompt()
+            }
+
+            if(tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
+                logError(PASSWORDINCORRECT)
+            }
+
+            if(tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
+                ifDebug(LOGINSUCCESSFUL)
+            }
+
+            if(tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
+                logError(LOGINTIMEOUT)
+            }
+
+        }
+
+        if(tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
+
+            if(tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
+                partitionArmedAway()
+            }
+
+            if(tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
+                state.armState = "armed_home"
+                partitionArmedHome()
+            }
+        }
+
+        if(tpiResponses[message.take(3) as int] == USEROPENING){
+            parseUser(message)
+        }
+
+        if(tpiResponses[message.take(3) as int] == USERCLOSING){
+            parseUser(message)
+        }
+
+        if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
+        }
+
+        if(tpiResponses[message.take(3) as int] == SPECIALOPENING){
+        }
   } else {
-    log.info("Processing VISTA message: ")
+    ifDebug("Panel Type: VISTA")
+    ifDebug("Processing VISTA message: ")
     if(message.take(6) == "Login:") {
-	    log.info("Received Login: request")
+	  ifDebug("Received Login: request")
       loginPrompt()
     }
 
@@ -658,7 +659,7 @@ def parse(String message) {
 
 
     if(message.take(3) == "%00") {
-	    log.info("Received %00 (Keypad Update) message")
+	    ifDebug("Received %00 (Keypad Update) message")
 	    // [%00,01,1C08,08,00,****DISARMED****  Ready to Arm  $]
 	    def mPartition = message[4..5]
 	    def mFlags = Integer.parseInt(message[7..10],16)
@@ -667,34 +668,34 @@ def parse(String message) {
 	    mChime = mChime.isInteger() ? (mChime as int) : 0
 	    def mDisplay = message[18..49]
 	    def vistaFlags = parseVistaFlags(mFlags,mChime,mDisplay)
-	    log.info("Vista FLAGS = " + vistaFlags.inspect())
+	    ifDebug("Vista FLAGS = " + vistaFlags.inspect())
 	    
 	    if ( vistaFlags.READY ) { partitionReady() }
 	    if ( vistaFlags.ARMED_AWAY ) { partitionArmedAway() }
 	    if ( vistaFlags.ARMED_STAY ) { partitionArmedHome() }
 	    if ( vistaFlags.ALARM || vistaFlags.ALARM_FIRE || vistaFlags.FIRE_ALARM ) { partitionAlarm() }
 	    if ( mDisplay.startsWith("FAULT") ) {
-					log.info("     Keypad Update: Zone " + mUserOrZone + " Tripped!")
+					ifDebug("     Keypad Update: Zone " + mUserOrZone + " Tripped!")
 					zoneOpen("000" + mUserOrZone.toString())
 	    }
 	    if ( mDisplay.startsWith("BYPAS") ) {
-					log.info("     Keypad Update: Zone " + mUserOrZone + " Bypassed!")
+					ifDebug("     Keypad Update: Zone " + mUserOrZone + " Bypassed!")
 	    }
 	    if ( mDisplay.startsWith("CHECK") ) {
-					log.info("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
+					ifDebug("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
 	    }
 	    if ( mDisplay.startsWith("TRBL") ) {
-					log.info("     Keypad Update: Zone " + mUserOrZone + " TROUBLE notification!")
+					ifDebug("     Keypad Update: Zone " + mUserOrZone + " TROUBLE notification!")
 	    }
 	    
     }
     if(message.take(3) == "%01") {
-	    log.info("Received %01 (Zone State Change) message")
+	    ifDebug("Received %01 (Zone State Change) message")
 	    def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
-	    log.info("         Zone State Change: Zone String [" + ZoneState + "]")
+	    ifDebug("         Zone State Change: Zone String [" + ZoneState + "]")
 			for (i = 1; i <65; i++) {
 				if ( ZoneState & (2**(i-1)) ) {
-					log.info("     Zone State Change: Zone " + i + " Tripped!")
+					ifDebug("     Zone State Change: Zone " + i + " Tripped!")
 					zoneOpen("000" + i.toString())
 				} else {
 					zoneClosed("000" + i.toString())
@@ -702,7 +703,7 @@ def parse(String message) {
 			}
     }
     if(message.take(3) == "%02") {
-	    log.info("Received %02 (Partition State Change) message")
+	    ifDebug("Received %02 (Partition State Change) message")
  			def p1Status = Integer.parseInt(message[4..5])
  			def p2Status = Integer.parseInt(message[6..7])
  			def p3Status = Integer.parseInt(message[8..9])
@@ -719,9 +720,9 @@ def parse(String message) {
 				8:"Partition is in Alarm",
 				9:"Alarm Has Occurred (Alarm in Memory)"
 			]
-			log.info("        Partition 1: " + partitionStates[p1Status])
-			log.info("        Partition 2: " + partitionStates[p2Status])
-			log.info("        Partition 3: " + partitionStates[p3Status])
+			ifDebug("        Partition 1: " + partitionStates[p1Status])
+			ifDebug("        Partition 2: " + partitionStates[p2Status])
+			ifDebug("        Partition 3: " + partitionStates[p3Status])
 			if (p1Status == 1) {
 				partitionReady()
 			}
@@ -750,15 +751,15 @@ def parse(String message) {
  
     }
     if(message.take(3) == "%03") {
-	    log.info("Received %03 (Realtime CID Event) message")
+	    ifDebug("Received %03 (Realtime CID Event) message")
 	    def Qualifier = message[4]
 	    def CID = message[5..7]
 	    def Partition = message[8..9]
 	    def ZoneOrUser = message[10..12]
-	    log.info("  Q: [" + Qualifier +"] CID: [" + CID + "] Partition: [" + Partition + "] Zone/User: [" + ZoneOrUser + "]")
+	    ifDebug("  Q: [" + Qualifier +"] CID: [" + CID + "] Partition: [" + Partition + "] Zone/User: [" + ZoneOrUser + "]")
     }
     if(message.take(3) == "%FF") {
-	    log.info("Received %FF (Zone Timer Dump) message")
+	    ifDebug("Received %FF (Zone Timer Dump) message")
     }
 
 
@@ -768,25 +769,25 @@ def parse(String message) {
 
 private sendTelnetLogin(){
 	log.info("sendTelnetLogin: ${passwd}")
-  def cmdToSend =  "${passwd}"
-	if(PanelType as int == 0) {
-    cmdToSend =  tpiCommands["Login"] + "${passwd}"
-    def cmdArray = cmdToSend.toCharArray()
-    def cmdSum = 0
-    cmdArray.each { cmdSum += (int)it }
-    def chkSumStr = DataType.pack(cmdSum, 0x08)
-    if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
-    cmdToSend += chkSumStr
-  }
+    def cmdToSend =  "${passwd}"
+    if(PanelType as int == 0) {
+        cmdToSend =  tpiCommands["Login"] + "${passwd}"
+        def cmdArray = cmdToSend.toCharArray()
+        def cmdSum = 0
+        cmdArray.each { cmdSum += (int)it }
+        def chkSumStr = DataType.pack(cmdSum, 0x08)
+        if(chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
+        cmdToSend += chkSumStr
+    }
   cmdToSend = cmdToSend + "\r\n"
   sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
 }
 
 private sendTelnetCommand(String s) {
-	if(PanelType as int == 0) {
-    s = generateChksum(s)
-  }
-  ifDebug("sendTelnetCommand $s")
+    if(PanelType as int == 0) {
+        s = generateChksum(s)
+    }
+    ifDebug("sendTelnetCommand $s")
 	return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
 }
 
@@ -880,6 +881,7 @@ private exitDelay(){
 }
 
 private generateChksum(String cmdToSend){
+    ifDebug("generateChksum")
 		def cmdArray = cmdToSend.toCharArray()
         def cmdSum = 0
         cmdArray.each { cmdSum += (int)it }
@@ -1415,6 +1417,10 @@ private zoneClosed(message){
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.1
+*   Fix logging
+*   Fix panel type initialization
+*   Fix ...
 * Version: 0.8
 *   Vista (Honeywell) support
 * Version: 0.7
