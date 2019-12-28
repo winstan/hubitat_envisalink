@@ -883,6 +883,7 @@ private exitDelay(){
 private generateChksum(String cmdToSend){
     ifDebug("generateChksum")
 		def cmdArray = cmdToSend.toCharArray()
+        ifDebug("cmdArray: ${cmdArray}")
         def cmdSum = 0
         cmdArray.each { cmdSum += (int)it }
         def chkSumStr = DataType.pack(cmdSum, 0x08)
