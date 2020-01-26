@@ -27,6 +27,7 @@
 
 import groovy.transform.Field
 
+def version() { return "Envisalink Combo 01-18-2020" }
 metadata {
 		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 			capability "Initialize"
@@ -36,11 +37,13 @@ metadata {
 			capability "Actuator"
 			capability "Polling"
 			capability "TamperAlert"
+			capability "ContactSensor"
 			
 			command "sendTelnetCommand", ["String"]
 			command "StatusReport"
 			command "ArmAway"
 			command "ArmHome"
+			command "ArmNight"
 			//command "ArmAwayZeroEntry"
 			//command "SoundAlarm"
 			command "Disarm"
@@ -50,7 +53,7 @@ metadata {
 			command "setUserCode", ["String", "Number", "Number"]
 			command "deleteUserCode", ["Number"]
 			command "configureZone", ["Number", "Number"]
-			command "testParse", ["String"]
+//			command "testParse", ["String"]
 
 			attribute   "Status", "string"
 			attribute   "Codes", "json"
@@ -145,7 +148,14 @@ def ArmAway(){
 
 def ArmHome(){
 	ifDebug("armHome()")
+	state.armState = "arming_home"
 	composeArmHome()
+}
+
+def ArmNight(){
+	ifDebug("armNight()")
+	state.armState = "arming_night"
+	composeArmNight()
 }
 
 def ArmAwayZeroEntry(){
@@ -272,6 +282,7 @@ def removeZone(zoneInfo){
 */
 private composeArmAway(){
 	ifDebug("composeArmAway")
+	state.armState = "arming_away"
 	def message = tpiCommands["ArmAway"]
 	if(PanelType as int == 1) {
 		message = masterCode + "2"
@@ -287,6 +298,17 @@ private composeArmHome(){
 		message = masterCode + "3"
 	}
 	sendTelnetCommand(message)
+}
+
+private composeArmNight(){
+	if(PanelType as int == 0) {
+		ifDebug("composeArmNight - NOT SUPPORTED BY DSC PANEL")
+	} else {
+		ifDebug("composeArmNight")
+		state.armState = "arming_night"
+		def message = masterCode + "33"
+		sendTelnetCommand(message)
+	}
 }
 
 private composeChimeToggle(){
@@ -386,7 +408,7 @@ private composeSetUserCode(name, position, code){
 		if (!device.currentValue("Codes")){
 			def tempMap = [:]
 			def tempJson = new groovy.json.JsonBuilder(tempMap)
-			sendEvent(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
+			send_Event(name:"Codes", value: tempMap, displayed:true, isStateChange: true)
 		}
 		def codePosition = position.toString()
 		codePosition = codePosition.padLeft(2, "0")
@@ -480,11 +502,12 @@ private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
 		ALARM: (flagBitMask & 0x0001) && true,
 		PERIMETER_ONLY: (flagBeep & 0x10) && true,
 		BEEP: (flagBeep & 0x0F) && true,
-		EXIT_DELAY_ACTIVE: (alphaDisplay.compareToIgnoreCase("you may exit    ") == 0) && true,
-		ENTRY_DELAY_ACTIVE: (alphaDisplay.compareToIgnoreCase("or alarm occurs ") == 0) && true
+		EXIT_DELAY_ACTIVE: alphaDisplay.toLowerCase().contains("may exit") && true,
+		ENTRY_DELAY_ACTIVE: alphaDisplay.toLowerCase().contains("alarm occurs") && true,
+		ARMED_NIGHT: alphaDisplay.toLowerCase().contains("night-stay") && (flagBitMask & 0x8000) && true
 	]
 
-	if (alphaDisplay.compareToIgnoreCase("alarm canceled  ") == 0) { flags.ALARM_MEMORY = true }
+	if (alphaDisplay.toLowerCase().contains("alarm canceled") == 0) { flags.ALARM_MEMORY = true }
 	if (flagBeep == 5) { flags.EXIT_DELAY_ACTIVE = true }
 
 	return flags	
@@ -660,10 +683,18 @@ def parse(String message) {
 			def vistaFlags = parseVistaFlags(mFlags,mChime,mDisplay)
 			ifDebug("Vista FLAGS = " + vistaFlags.inspect())
 
-			if ( vistaFlags.READY ) { partitionReady() }
-			if ( vistaFlags.ARMED_AWAY ) { partitionArmedAway() }
-			if ( vistaFlags.ARMED_STAY ) { partitionArmedHome() }
-			if ( vistaFlags.ALARM || vistaFlags.ALARM_FIRE || vistaFlags.FIRE_ALARM ) { partitionAlarm() }
+			if ( vistaFlags.ALARM ) { zoneOpen("000" + mUserOrZone.toString(), false); partitionAlarm() }
+			else if ( vistaFlags.ALARM_FIRE || vistaFlags.FIRE_ALARM ) { partitionAlarm() }
+			else if ( vistaFlags.READY ) { if (state.armState != "disarmed"){ partitionDisarmed() };	partitionReady() }
+			else if ( vistaFlags.ENTRY_DELAY_ACTIVE ) { entryDelay() }
+			else if ( vistaFlags.EXIT_DELAY_ACTIVE ) { exitDelay() }
+			else if ( vistaFlags.ARMED_AWAY ) { partitionArmedAway() }
+			else if ( vistaFlags.ARMED_NIGHT ) { partitionArmedNight() }
+			else if ( vistaFlags.ARMED_STAY ) { partitionArmedHome() }
+			if ( mDisplay.startsWith("Alarm Canceled") ) {
+				ifDebug("     Keypad Update: Alarm Canceled!")
+				partitionDisarmed()
+			}
 			if ( mDisplay.startsWith("FAULT") ) {
 				ifDebug("     Keypad Update: Zone " + mUserOrZone + " Tripped!")
 				zoneOpen("000" + mUserOrZone.toString())
@@ -716,7 +747,7 @@ def parse(String message) {
 			ifDebug("        Partition 2: " + partitionStates[p2Status])
 			ifDebug("        Partition 3: " + partitionStates[p3Status])
 			if (p1Status == 1) {
-				partitionReady()
+				partitionDisarmed()
 			}
 			if (p1Status == 2) {
 				partitionReady()
@@ -770,11 +801,11 @@ def parse(String message) {
 				"CID_Zone": mZone,
 				"CID_Timestamp": now()
 			]
-			sendEvent(name: "CID_Code", value: mCIDCode, isStateChange: true)
-			sendEvent(name: "CID_Type", value: mCIDType, isStateChange: true)
-			sendEvent(name: "CID_Partition", value: mPartition, isStateChange: true)
-			sendEvent(name: "CID_UserZone", value:mUserOrZone, isStateChange: true)
-			sendEvent(name: "CID_DATA", value: CID_DATA, isStateChange: true)
+			send_Event(name: "CID_Code", value: mCIDCode, isStateChange: true)
+			send_Event(name: "CID_Type", value: mCIDType, isStateChange: true)
+			send_Event(name: "CID_Partition", value: mPartition, isStateChange: true)
+			send_Event(name: "CID_UserZone", value:mZoneOrUser, isStateChange: true)
+			send_Event(name: "CID_DATA", value: CID_DATA, isStateChange: true)
 			ifDebug("  CID_Code: [" + mCIDCode +"] CID_Type: [" + mCIDType + "] CID_Partition: [" + mPartition + "] Zone/User: [" + mZoneOrUser + "] CID_DATA: [" + CID_DATA.inspect() + "]")
 		
 		}
@@ -899,7 +930,7 @@ private deleteUserCodeComplete(){
 	storedCodes.remove(state.newCodePosition.toString())
 
 	def json = new groovy.json.JsonBuilder(storedCodes)
-	sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
+	send_Event(name:"Codes", value: json, displayed:true, isStateChange: true)
 	state.newCode = ""
 	state.newCodePosition = ""
 	state.name = ""
@@ -908,14 +939,14 @@ private deleteUserCodeComplete(){
 
 private entryDelay(){
 	ifDebug("entryDelay")
-	sendEvent(name:"Status", value: ENTRYDELAY)
+	send_Event(name:"Status", value: ENTRYDELAY)
 	state.armState = "intrusion"
 	parent.speakEntryDelay()
 }
 
 private exitDelay(){
 	ifDebug("exitDelay")
-	sendEvent(name:"Status", value: EXITDELAY)
+	send_Event(name:"Status", value: EXITDELAY)
 	parent.speakExitDelay()
 }
 
@@ -944,7 +975,7 @@ private ifDebug(msg){
 
 private loginPrompt(){
 	ifDebug("loginPrompt")
-	sendEvent(name: "DeviceWatch-DeviceStatus", value: "online")
+	send_Event(name: "DeviceWatch-DeviceStatus", value: "online")
 	ifDebug("Connection to Envisalink established")
 	state.reTryCount = 0
 	sendTelnetLogin()
@@ -953,7 +984,7 @@ private loginPrompt(){
 
 private keypadLockout(){
 	ifDebug("keypadLockout")
-	sendEvent(name:"Status", value: KEYPADLOCKOUT)
+	send_Event(name:"Status", value: KEYPADLOCKOUT)
 }
 
 private keypadLedState(ledState){
@@ -989,40 +1020,45 @@ private logError(msg){
 
 private partitionReady(){
 	ifDebug("partitionReady")
-	sendEvent(name:"Status", value: PARTITIONREADY)
-	sendEvent(name: "switch", value: "off")
+	send_Event(name:"Status", value: PARTITIONREADY)
+	send_Event(name: "switch", value: "off")
+	send_Event(name:"contact", value: "closed")
 	state.armState = "disarmed"
 	state.newCode = ""
 	state.newCodePosition = ""
 	state.newName = ""
 	state.programmingMode = ""
 	clearAllZones()
-	sendEvent(name:"tamper", value: "clear", displayed:true, isStateChange: true)
-	sendEvent(name:"tamperZone", value: "", displayed:true, isStateChange: true)
+	send_Event(name:"tamper", value: "clear", displayed:true, isStateChange: true)
+	send_Event(name:"tamperZone", value: "", displayed:true, isStateChange: true)
 
 }
 
 private partitionNotReady(){
 	ifDebug("partitionNotReady")
-	sendEvent(name:"Status", value: PARTITIONNOTREADY)
+	send_Event(name:"Status", value: PARTITIONNOTREADY)
+	send_Event(name:"contact", value: "closed")
 }
 
 private partitionReadyForForcedArmEnabled(){
 	ifDebug("partitionReadyForForcedArmEnabled")
-	sendEvent(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED)
+	send_Event(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED)
+	send_Event(name:"contact", value: "closed")
 }
 
 private partitionAlarm(){
 	ifDebug("partitionAlarm")
-	sendEvent(name:"Status", value: PARTITIONINALARM)
+	send_Event(name:"Status", value: PARTITIONINALARM)
+	send_Event(name:"contact", value: "open")
 	state.armState = "alarming"
 	parent.speakAlarm()
 }
 
 private partitionDisarmed(){
 	ifDebug("partitionDisarmed")
-	sendEvent(name:"Status", value: PARTITIONDISARMED)
-	sendEvent(name: "switch", value: "off")
+	send_Event(name:"Status", value: PARTITIONDISARMED)
+	send_Event(name: "switch", value: "off")
+	send_Event(name:"contact", value: "closed")
 	if (state.armState != "disarmed"){
 		ifDebug("disarming")
 		state.armState = "disarmed"
@@ -1032,31 +1068,41 @@ private partitionDisarmed(){
 
 		if (location.hsmStatus != "disarmed")
 		{
-			sendLocationEvent(name: "hsmSetArm", value: "disarm")
+			sendLocationEvent(name: "hsmSetArm", value: "disarm"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"disarm\")")
 		}
 	}
 }
 
 private partitionArmedAway(){
 	ifDebug("partitionArmedAway")
-	sendEvent(name:"Status", value: PARTITIONARMEDAWAY)
-	sendEvent(name: "switch", value: "on")
-	if (state.armState.contains("home")){
-		systemArmedHome()
-	} else {
+	send_Event(name: "Status", value: PARTITIONARMEDAWAY)
+	send_Event(name: "switch", value: "on")
+	send_Event(name: "contact", value: "closed")
+//	if (state.armState.contains("home")){
+//		systemArmedHome()
+//	} else {
 		systemArmed()
-	}
+//	}
 }
 
 private partitionArmedHome(){
 	ifDebug("partitionArmedHome")
-	sendEvent(name:"Status", value: PARTITIONARMEDHOME)
-	sendEvent(name: "switch", value: "on")
-	if (state.armState.contains("home")){
+	send_Event(name: "Status", value: PARTITIONARMEDHOME)
+	send_Event(name: "switch", value: "on")
+	send_Event(name: "contact", value: "closed")
+//	if (state.armState.contains("home")){
 		systemArmedHome()
-	} else {
-		systemArmed()
-	}
+//	} else {
+//		systemArmed()
+//	}
+}
+
+private partitionArmedNight(){
+	ifDebug("partitionArmedNight")
+	send_Event(name: "Status", value: PARTITIONARMEDNIGHT)
+	send_Event(name: "switch", value: "on")
+	send_Event(name: "contact", value: "closed")
+	systemArmedNight()
 }
 
 private parseUser(message){
@@ -1065,7 +1111,7 @@ private parseUser(message){
 	def userPosition = message.substring(6,length)
 	ifDebug("${USEROPENING} - ${userPosition}" )
 
-	sendEvent(name:"LastUsedCodePosition", value: userPosition)
+	send_Event(name:"LastUsedCodePosition", value: userPosition)
 
 	def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
 	assert storedCodes instanceof Map
@@ -1078,7 +1124,7 @@ private parseUser(message){
 	ifDebug("Selected Code: ${selectedCode.name}")
 
 	if (selectedCode?.name){
-		sendEvent(name:"LastUsedCodeName", value: selectedCode.name)
+		send_Event(name:"LastUsedCodeName", value: selectedCode.name)
 	}
 
 	return userPosition
@@ -1114,7 +1160,7 @@ private setUserCodeComplete(){
 	storedCodes.put((state.newCodePosition.toString()), (newCodeMap))
 	ifDebug("storedCodes: ${storedCodes}")
 	def json = new groovy.json.JsonBuilder(storedCodes)
-	sendEvent(name:"Codes", value: json, displayed:true, isStateChange: true)
+	send_Event(name:"Codes", value: json, displayed:true, isStateChange: true)
 	state.newCode = ""
 	state.newCodePosition = ""
 	state.name = ""
@@ -1128,9 +1174,9 @@ private systemArmed(){
 		parent.switchItArmed()
 		parent.speakArmed()
 
-		if (location.hsmStatus == "disarmed")
+		if (location.hsmStatus != "armedAway")
 		{
-			sendLocationEvent(name: "hsmSetArm", value: "armAway")
+			sendLocationEvent(name: "hsmSetArm", value: "armAway"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"armAway\")")
 		}
 	}
 }
@@ -1143,9 +1189,24 @@ private systemArmedHome(){
 		parent.switchItArmed()
 		parent.speakArmed()
 
-		if (location.hsmStatus == "disarmed")
+		if (location.hsmStatus != "armedHome")
 		{
-			sendLocationEvent(name: "hsmSetArm", value: "armHome")
+			sendLocationEvent(name: "hsmSetArm", value: "armHome"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"armHome\")")
+		}
+	}
+}
+
+private systemArmedNight(){
+	if (state.armState != "armed_night"){
+		ifDebug("Armed Night")
+		state.armState = "armed_night"
+		parent.lockIt()
+		parent.switchItArmed()
+		parent.speakArmed()
+
+		if (location.hsmStatus != "armedNight")
+		{
+			sendLocationEvent(name: "hsmSetArm", value: "armNight"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"armNight\")")
 		}
 	}
 }
@@ -1196,14 +1257,14 @@ private zoneOpen(message, Boolean autoReset = false){
 	log.debug zoneDevice
 	if (zoneDevice){
 		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
-			ifDebug("Contact Open")
+			ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
 			zoneDevice.open()
 			if ((PanelType as int == 1) && autoReset) {
 				zoneDevice.unschedule()
 				zoneDevice.runIn(60,"close")
 			}
 		}else {
-			ifDebug("Motion Active")
+			ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
 			zoneDevice.active()
 			zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
 			if ((PanelType as int == 1) && autoReset) {
@@ -1246,12 +1307,15 @@ private zoneTamper(message){
 	}
 	log.debug zoneDevice
 	if (zoneDevice){
-		sendEvent(name:"tamper", value: "detected", displayed:true, isStateChange: true)
-		sendEvent(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
+		send_Event(name:"tamper", value: "detected", displayed:true, isStateChange: true)
+		send_Event(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
 	}
 }
 
-
+private send_Event(evnt) {
+	ifDebug("sendEvent(${evnt})")
+	sendEvent(evnt)
+}
 /***********************************************************************************************************************
 *   Variables
 */
@@ -1334,6 +1398,7 @@ private zoneTamper(message){
 @Field static final String PARTITIONARMEDSTATE = "Armed State"
 @Field static final String PARTITIONARMEDAWAY = "Armed Away"
 @Field static final String PARTITIONARMEDHOME = "Armed Home"
+@Field static final String PARTITIONARMEDNIGHT = "Armed Night"
 @Field static final String PARTITIONNOTREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
 @Field static final String PARTITIONINALARM = "In Alarm"
 @Field static final String PARTITIONDISARMED = "Disarmed"
