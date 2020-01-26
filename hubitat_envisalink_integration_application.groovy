@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink Combo 01-19-2020" }
+def version() { return "Envisalink Combo 01-20-2020" }
 
 definition(
     name: "Envisalink Integration",

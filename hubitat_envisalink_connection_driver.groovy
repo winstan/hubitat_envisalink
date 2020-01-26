@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink Combo 01-19-2020" }
+def version() { return "Envisalink Combo 01-20-2020" }
 metadata {
 		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 			capability "Initialize"
@@ -61,6 +61,14 @@ metadata {
 			attribute   "Codes", "json"
 			attribute   "LastUsedCodePosition", "string"
 			attribute   "LastUsedCodeName", "string"
+
+			attribute	"CID_Code", "string"
+			attribute	"CID_Type", "string"
+			attribute	"CID_Partition", "string"
+			attribute	"CID_UserZone", "string"
+			attribute	"CID_DATA", "string"
+
+		
 		}
 
 		preferences {
@@ -527,7 +535,7 @@ private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
 */
 
 def parse(String message) {
-	ifDebug("Parsing Incoming message: [" + message + "]")
+	ifDebug("Parsing Incoming message: [" + message + "]\n\n")
 
 	//ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
 	ifDebug("Panel Type: " + PanelType)
@@ -701,6 +709,10 @@ def parse(String message) {
 			else if ( vistaFlags.ARMED_STAY ) { partitionArmedHome() }
 			if ( mDisplay.startsWith("Alarm Canceled") ) {
 				ifDebug("     Keypad Update: Alarm Canceled!")
+				// after a panic alarm, a disarm clears the alarm condition, but an additional
+				// disarm is required to return the panel to ready. This additional disarm can
+				// not be sent until after the panel announces that the alarm has been cancelled
+				composeDisarm()
 				partitionDisarmed()
 			}
 			if ( mDisplay.startsWith("FAULT") ) {
@@ -1028,45 +1040,47 @@ private logError(msg){
 
 private partitionReady(){
 	ifDebug("partitionReady")
-	send_Event(name:"Status", value: PARTITIONREADY)
-	send_Event(name: "switch", value: "off")
-	send_Event(name:"contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONREADY) { send_Event(name:"Status", value: PARTITIONREADY, isStateChange: true) }
+	if (device.currentValue("switch") != "off") { send_Event(name: "switch", value: "off", isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 	state.armState = "disarmed"
 	state.newCode = ""
 	state.newCodePosition = ""
 	state.newName = ""
 	state.programmingMode = ""
 	clearAllZones()
-	send_Event(name:"tamper", value: "clear", displayed:true, isStateChange: true)
-	send_Event(name:"tamperZone", value: "", displayed:true, isStateChange: true)
+	if (device.currentValue("tamper") != "clear") {
+		send_Event(name:"tamper", value: "clear", displayed:true, isStateChange: true)
+		send_Event(name:"tamperZone", value: "", displayed:true, isStateChange: true)
+	}
 
 }
 
 private partitionNotReady(){
 	ifDebug("partitionNotReady")
-	send_Event(name:"Status", value: PARTITIONNOTREADY)
-	send_Event(name:"contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONNOTREADY) { send_Event(name:"Status", value: PARTITIONNOTREADY, isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 }
 
 private partitionReadyForForcedArmEnabled(){
 	ifDebug("partitionReadyForForcedArmEnabled")
-	send_Event(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED)
-	send_Event(name:"contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONNOTREADYFORCEARMINGENABLED) { send_Event(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED, isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed") }
 }
 
 private partitionAlarm(){
 	ifDebug("partitionAlarm")
-	send_Event(name:"Status", value: PARTITIONINALARM)
-	send_Event(name:"contact", value: "open")
+	if (device.currentValue("Status") != PARTITIONINALARM) { send_Event(name:"Status", value: PARTITIONINALARM, isStateChange: true) }
+	if (device.currentValue("contact") != "open") { send_Event(name:"contact", value: "open", isStateChange: true) }
 	state.armState = "alarming"
 	parent.speakAlarm()
 }
 
 private partitionDisarmed(){
 	ifDebug("partitionDisarmed")
-	send_Event(name:"Status", value: PARTITIONDISARMED)
-	send_Event(name: "switch", value: "off")
-	send_Event(name:"contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONDISARMED) { send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) }
+	if (device.currentValue("switch") != "off") { send_Event(name:"switch", value: "off", isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 	if (state.armState != "disarmed"){
 		ifDebug("disarming")
 		state.armState = "disarmed"
@@ -1079,13 +1093,20 @@ private partitionDisarmed(){
 			sendLocationEvent(name: "hsmSetArm", value: "disarm"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"disarm\")")
 		}
 	}
+	if (device.currentValue("CID_Code") != "") {
+		send_Event(name: "CID_Code", value: "", isStateChange: true)
+		send_Event(name: "CID_Type", value: "", isStateChange: true)
+		send_Event(name: "CID_Partition", value: "", isStateChange: true)
+		send_Event(name: "CID_UserZone", value: "", isStateChange: true)
+		send_Event(name: "CID_DATA", value: "", isStateChange: true)
+	}
 }
 
 private partitionArmedAway(){
 	ifDebug("partitionArmedAway")
-	send_Event(name: "Status", value: PARTITIONARMEDAWAY)
-	send_Event(name: "switch", value: "on")
-	send_Event(name: "contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONARMEDAWAY) { send_Event(name:"Status", value: PARTITIONARMEDAWAY, isStateChange: true) }
+	if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 //	if (state.armState.contains("home")){
 //		systemArmedHome()
 //	} else {
@@ -1095,9 +1116,9 @@ private partitionArmedAway(){
 
 private partitionArmedHome(){
 	ifDebug("partitionArmedHome")
-	send_Event(name: "Status", value: PARTITIONARMEDHOME)
-	send_Event(name: "switch", value: "on")
-	send_Event(name: "contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONARMEDHOME) { send_Event(name:"Status", value: PARTITIONARMEDHOME, isStateChange: true) }
+	if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 //	if (state.armState.contains("home")){
 		systemArmedHome()
 //	} else {
@@ -1107,9 +1128,9 @@ private partitionArmedHome(){
 
 private partitionArmedNight(){
 	ifDebug("partitionArmedNight")
-	send_Event(name: "Status", value: PARTITIONARMEDNIGHT)
-	send_Event(name: "switch", value: "on")
-	send_Event(name: "contact", value: "closed")
+	if (device.currentValue("Status") != PARTITIONARMEDNIGHT) { send_Event(name:"Status", value: PARTITIONARMEDNIGHT, isStateChange: true) }
+	if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
+	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 	systemArmedNight()
 }
 
@@ -1363,8 +1384,10 @@ private zoneTamper(message){
 	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
 	ifDebug(zoneDevice)
 	if (zoneDevice){
-		send_Event(name:"tamper", value: "detected", displayed:true, isStateChange: true)
-		send_Event(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
+		if (device.currentValue("tamper") != "detected") {
+			send_Event(name:"tamper", value: "detected", displayed:true, isStateChange: true)
+			send_Event(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
+		}
 	}
 }
 
