@@ -5,6 +5,8 @@
 *
 *  Copyright (C) 2018 Doug Beard
 *
+*  Vista related portions and general enhancements by CybrMage
+*
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
 *  General Public License as published by the Free Software Foundation, either version 3 of the License, or
@@ -27,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink Combo 01-18-2020" }
+def version() { return "Envisalink Combo 01-19-2020" }
 metadata {
 		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 			capability "Initialize"
@@ -245,7 +247,7 @@ def TogleTimeStamp(){
 */
 
 def createZone(zoneInfo){
-	log.info "Creating ${zoneInfo.zoneName} with label '${zoneInfo.zoneLabel}' with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType} for panel type: " + PanelType
+	ifDebug( "Creating ${zoneInfo.zoneName} with label '${zoneInfo.zoneLabel}' with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType} for panel type: " + PanelType)
 	def newDevice
 	if (zoneInfo.zoneType == "0")
 	{
@@ -254,26 +256,32 @@ def createZone(zoneInfo){
 		if(PanelType as int == 1) {
 			// Vista does not report contact sensors inactive... make it automatic
 			// virtual contact sensor does not support autoInactive
-//			log.info("Setting autoInactive for Virtual Contact Sensor for Vista Panel")
+//			ifDebug("Setting autoInactive for Virtual Contact Sensor for Vista Panel")
 //			newDevice.updateSetting("autoInactive",[type:"enum", value:"60"])
 		}
 
-	} else {
+	} else if (zoneInfo.zoneType == "1") {
 		addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
 		newDevice = getChildDevice(zoneInfo.deviceNetworkId)
 		if(PanelType as int == 0) {
 			newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
 		} else {
 			// Vista does not report motion sensor inactive... make it automatic
-			log.info("Setting autoInactive for Virtual Motion Sensor for Vista Panel")
+			ifDebug("Setting autoInactive for Virtual Motion Sensor for Vista Panel")
 			newDevice.updateSetting("autoInactive",[type:"enum", value:"180"])
 		}
+	} else if (zoneInfo.zoneType == "2") {
+		addChildDevice("hubitat", "Virtual CO Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
+	} else if (zoneInfo.zoneType == "3") {
+		addChildDevice("hubitat", "Virtual Smoke Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
+	} else if (zoneInfo.zoneType == "4") {
+		addChildDevice("cybr", "Virtual GlassBreak Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
 	}
 
 }
 
 def removeZone(zoneInfo){
-	log.info "Removing ${zoneInfo.zoneName} with deviceNetworkId = ${zoneInfo.deviceNetworkId}"
+	ifDebug("Removing ${zoneInfo.zoneName} with deviceNetworkId = ${zoneInfo.deviceNetworkId}")
 	deleteChildDevice(zoneInfo.deviceNetworkId)
 }
 
@@ -1235,10 +1243,28 @@ private clearAllZones() {
 					zoneDevice.close()
 					zoneDevice.unschedule()
 				}
-			}else {
+			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
 				if (zoneDevice.latestValue("motion") == "active") {
 					ifDebug("clearAllZones: Zone ${zID} Motion Inactive")
 					zoneDevice.inactive()
+					zoneDevice.unschedule()
+				}
+			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
+				if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
+					ifDebug("clearAllZones: Zone ${zID} Carbon Monoxide clear")
+					zoneDevice.clear()
+					zoneDevice.unschedule()
+				}
+			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
+				if (zoneDevice.latestValue("smoke") != "clear") {
+					ifDebug("clearAllZones: Zone ${zID} Smoke Detector clear")
+					zoneDevice.clear()
+					zoneDevice.unschedule()
+				}
+			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
+				if (zoneDevice.latestValue("shock") != "clear") {
+					ifDebug("clearAllZones: Zone ${zID} GlassBreak Detector clear")
+					zoneDevice.clear()
 					zoneDevice.unschedule()
 				}
 			}
@@ -1247,30 +1273,54 @@ private clearAllZones() {
 	ifDebug("clearAllZones: Completed")
 }
 
+private getZoneDevice(zoneId) {
+	def zoneDevice = null
+	zoneDevice = getChildDevice("${device.deviceNetworkId}_${zoneId}")
+	if (zoneDevice == null){
+		zoneDevice = getChildDevice("${device.deviceNetworkId}_M_${zoneId}")
+		if (zoneDevice == null){
+			zoneDevice = getChildDevice("${device.deviceNetworkId}_C_${zoneId}")
+			if (zoneDevice == null){
+				zoneDevice = getChildDevice("${device.deviceNetworkId}_S_${zoneId}")
+				if (zoneDevice == null){
+					zoneDevice = getChildDevice("${device.deviceNetworkId}_G_${zoneId}")
+				}
+			}
+		}
+	}
+	return zoneDevice
+}
+
 private zoneOpen(message, Boolean autoReset = false){
 	def zoneDevice
 	def substringCount = message.size() - 3
-	zoneDevice = getChildDevice("${device.deviceNetworkId}_${message.substring(substringCount).take(3)}")
-	if (zoneDevice == null){
-	zoneDevice = getChildDevice("${device.deviceNetworkId}_M_${message.substring(substringCount).take(3)}")
-	}
-	log.debug zoneDevice
+	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
 	if (zoneDevice){
-		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
+		ifDebug(zoneDevice)
+		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
 			ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
 			zoneDevice.open()
 			if ((PanelType as int == 1) && autoReset) {
 				zoneDevice.unschedule()
 				zoneDevice.runIn(60,"close")
 			}
-		}else {
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
 			ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
 			zoneDevice.active()
 			zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
-			if ((PanelType as int == 1) && autoReset) {
-				zoneDevice.unschedule()
-				zoneDevice.runIn(245,"close")
-			}
+			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
+			ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.detected()
+			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
+			ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.detected()
+			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
+			ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.detected()
+			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
 		}
 	}
 }
@@ -1278,20 +1328,29 @@ private zoneOpen(message, Boolean autoReset = false){
 private zoneClosed(message){
 	def zoneDevice
 	def substringCount = message.size() - 3
-	zoneDevice = getChildDevice("${device.deviceNetworkId}_${message.substring(substringCount).take(3)}")
-	if (zoneDevice == null){
-		zoneDevice = getChildDevice("${device.deviceNetworkId}_M_${message.substring(substringCount).take(3)}")
-	}
+	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
 	if (zoneDevice){
 		ifDebug(zoneDevice)
 		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
 			ifDebug("Contact Closed")
 			zoneDevice.close()
             if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
-		} else {
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
 			ifDebug("Motion Inactive")
 			zoneDevice.inactive()
 			zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
+			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
+			ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.clear()
+			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
+			ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.clear()
+			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
+			ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+			zoneDevice.clear()
 			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
 		}
 	}
@@ -1301,11 +1360,8 @@ private zoneTamper(message){
     def zoneDevice
 	def substringCount = message.size() - 3
 	def msg = message.substring(substringCount).take(3)
-	zoneDevice = getChildDevice("${device.deviceNetworkId}_${msg}")
-	if (zoneDevice == null){
-		zoneDevice = getChildDevice("${device.deviceNetworkId}_M_${msg}")
-	}
-	log.debug zoneDevice
+	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
+	ifDebug(zoneDevice)
 	if (zoneDevice){
 		send_Event(name:"tamper", value: "detected", displayed:true, isStateChange: true)
 		send_Event(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
