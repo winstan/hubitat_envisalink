@@ -29,9 +29,12 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink Combo 01-21-2020" }
+def version() { return "Envisalink 0.8.2" }
 metadata {
-		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
+		definition (name: "Envisalink Connection", 
+			namespace: "dwb", 
+			author: "Doug Beard", 
+			importUrl: "https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy") {
 			capability "Initialize"
 			capability "Telnet"
 			capability "Alarm"
@@ -283,7 +286,7 @@ def createZone(zoneInfo){
 	} else if (zoneInfo.zoneType == "3") {
 		addChildDevice("hubitat", "Virtual Smoke Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
 	} else if (zoneInfo.zoneType == "4") {
-		addChildDevice("cybr", "Virtual GlassBreak Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
+		addChildDevice("dwb", "Virtual GlassBreak Detector", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
 	}
 
 }
@@ -2019,6 +2022,10 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.2
+*   Addtional Vista fixes merged from Cybrmage 
+*   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
+*   CID data now logged to state variables
 * Version: 0.8.1
 *   Fix logging
 *   Fix panel type initialization

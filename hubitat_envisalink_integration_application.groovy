@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink Combo 01-21-2020" }
+def version() { return "Envisalink 0.5.2" }
 
 definition(
     name: "Envisalink Integration",
@@ -37,6 +37,7 @@ definition(
     author: "Doug Beard",
     description: "Integrate your DSC Alarm system, using Envisalink 3 or 4",
     category: "My Apps",
+    importUrl: "https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
     iconUrl: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX2Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX3Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
@@ -901,6 +902,10 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.2
+*   Addtional Vista fixes and improvements from Cybrmage
+*   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
+* 
 * Version: 0.5.1
 *	Fix child device variable mix up
 *
