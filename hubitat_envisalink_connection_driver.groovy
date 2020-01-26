@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink Combo 01-20-2020" }
+def version() { return "Envisalink Combo 01-21-2020" }
 metadata {
 		definition (name: "Envisalink Connection", namespace: "dwb", author: "Doug Beard") {
 			capability "Initialize"

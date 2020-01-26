@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink Combo 01-20-2020" }
+def version() { return "Envisalink Combo 01-21-2020" }
 
 definition(
     name: "Envisalink Integration",
@@ -848,11 +848,9 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	if (getEnvisalinkDevice()) {
-		state.version = " App [" + version() + "]  Driver [" + getEnvisalinkDevice().version() + "]"
-	} else {
-		state.version = " App [" + version() + "]  Driver [ No Driver Loaded Yet ]"
-	}
+	def appVersion = version()
+	def driverVersion = (getEnvisalinkDevice() == null) ? "Not Yet Installed" : getEnvisalinkDevice().version()
+	state.version = " App [" + appVersion + "]  Driver [" + driverVersion + "]"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
