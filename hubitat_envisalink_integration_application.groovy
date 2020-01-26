@@ -5,6 +5,8 @@
 *
 *  Copyright (C) 2018 Doug Beard
 *
+*  Vista related portions and general enhancements by CybrMage
+*
 *  License:
 *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU
 *  General Public License as published by the Free Software Foundation, either version 3 of the License, or
@@ -26,6 +28,8 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
+def version() { return "Envisalink 0.5.2" }
+
 definition(
     name: "Envisalink Integration",
     namespace: "dwb",
@@ -33,6 +37,7 @@ definition(
     author: "Doug Beard",
     description: "Integrate your DSC Alarm system, using Envisalink 3 or 4",
     category: "My Apps",
+    importUrl: "https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
     iconUrl: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX2Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX3Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
@@ -80,7 +85,7 @@ def mainPage() {
 			showTitle()
 			section("<h1>Zone Mapping</h1>") {
                 href (name: "zoneMapsPage", title: "Zones",
-                description: "Create Virtual Contacts and Map them to Existing Zones in your Envisalink setup",
+                description: "Create Virtual sensors and Map them to Existing Zones in your Envisalink setup",
                 page: "zoneMapsPage")
             }
 
@@ -134,10 +139,8 @@ def aboutPage() {
             paragraph "An EyezOn EnvisaLink module allows you to upgrade your existing security system with IP control ... " +
                 "Envisalink Integration connects to your Envisalink module via Telnet, using eyezon's public TPI."
             paragraph "Evisalink Integration automates installation and configuration of the Envisalink Connection Driver" +
-                " as well as Virtual Contacts representing the dry contact zones and Virtual Motion Detection configured in your DSC Alarm system."
-            paragraph "You must have the Hubitat Envisalink Connection driver already installed before making use of Envisalink Integration application " +
-                "https://github.com/omayhemo/hubitat_envisalink/blob/master/hubitat_envisalink_connection_driver.groovy"
-			paragraph "Currently, Envisalink Integration application and Connection driver only work with DSC"
+                " as well as Virtual Sensors representing the zones configured in your DSC or Vista Alarm system."
+            paragraph "You must have the Hubitat Envisalink Connection driver already installed before making use of Envisalink Integration application "
             paragraph "Special Thanks to the Hubitat staff and cuboy29."
         }
 	}
@@ -339,14 +342,23 @@ def zoneMapsPage() {
     {
         createZone()
     }
+    if (state.editingZone)
+    {
+        editZone()
+    }
 
 	dynamicPage(name: "zoneMapsPage", title: "", install: false, uninstall: false){
 
         section("<h1>Zone Maps</h1>"){
-            paragraph "The partition of your Envisalink Installation should be divided into Zones.  Should the Zone be fitted with a dry contact, you can map the Zone to a Virtual Contact component device in Envisalink Integration "
+            paragraph "The partition of your Envisalink Installation should be divided into Zones. " + 
+				"You can map each Zone to a Virtual sensor component device in Envisalink Integration "
             paragraph "You'll want to determine the Zone number as it is defined in " +
-                "your Envisalink setup.  Define a new Zone in Envisalink Itegration and the application will then create a Virtual Contact sensor component device, which will report the state of the Envisalink Zone to which it is mapped. " +
-                " The Virtual Contact sensor components can be used in Rule Machine or any other application that is capable of leveraging the contact capability.  Envisalink is capable of 64 zones, your zone map should correspond to the numeric representation of that zone."
+                "your Envisalink setup.  Define a new Zone in Envisalink Integration and the " + 
+				"application will then create a Virtual sensor component device, which will report " +
+				"the state of the Envisalink Zone to which it is mapped. The Virtual sensor components " +
+				"can be used in Rule Machine or any other application that is capable of leveraging the " +
+				"Contact/Motion/CO/Smoke/Shock capabilities."
+			paragraph "Envisalink is capable of 48 zones (Vista) or 64 zones (DSC), your zone map should correspond to the numeric representation of those zones."
         }
         section("Create a Zone Map") {
             href (name: "createZoneMapPage", title: "Create a Zone Map",
@@ -355,11 +367,11 @@ def zoneMapsPage() {
         }
 
        section("<h2>Existing Zones</h2>"){
-            getEnvisalinkDevice().getChildDevices().each{
-                href (name: "editZoneMapPage", title: "${it.label}",
-                description: "Zone Details",
-                params: [deviceNetworkId: it.deviceNetworkId],
-                page: "editZoneMapPage")
+            getEnvisalinkDevice().getChildDevices().sort({ a, b -> a.name <=> b.name }).each{
+				href (name: "editZoneMapPage", title: "${it.name} - ${it.label}",
+					  description: "Zone Details\t${it.getTypeName()}",
+					  params: [deviceNetworkId: it.deviceNetworkId],
+					  page: "editZoneMapPage")
             }
 		}
 	}
@@ -368,13 +380,16 @@ def zoneMapsPage() {
 def defineZoneMap() {
     ifDebug("Showing defineZoneMap")
     state.creatingZone = true;
+	app.clearSetting("zoneName")
+	app.clearSetting("zoneNumber")
+	app.clearSetting("zoneType")
 	dynamicPage(name: "defineZoneMap", title: ""){
         section("<h1>Create a Zone Map</h1>"){
             paragraph "Create a Map for a zone in Envisalink"
            	input "zoneName", "text", title: "Zone Name", required: true, multiple: false, defaultValue: "Zone x", submitOnChange: false
             input "zoneNumber", "number", title: "Which Zone 1-64", required: true, multiple: false, defaultValue: 001, range: "1..64", submitOnChange: false
-            input "zoneType", "enum", title: "Motion or Contact Sensor?", required: true, multiple: false,
-                options: [[0:"Contact"],[1:"Motion"]]
+            input "zoneType", "enum", title: "Type of Sensor?", required: true, multiple: false,
+                options: [[0:"Contact"],[1:"Motion"],[2:"CO"],[3:"Smoke"],[4:"GlassBreak"]]
         }
 	}
 }
@@ -385,17 +400,41 @@ def editZoneMapPage(message) {
     state.allZones = getEnvisalinkDevice().getChildDevices()
     def zoneDevice = getEnvisalinkDevice().getChildDevice(message.deviceNetworkId)
     def paragraphText = ""
+	def zType = "Contact"
+    state.editingZone = true
     state.editedZoneDNI = message.deviceNetworkId;
+	log.debug("editing zoneDevice: name = '${zoneDevice.name}' label = '${zoneDevice.label}' ")
     if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}){
         paragraphText = paragraphText + "Motion Sensor\n"
+		zType = "Motion"
     }
     if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
         paragraphText = paragraphText + "Contact Sensor\n"
+		zType = "Contact"
     }
+    if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}){
+        paragraphText = paragraphText + "CO Sensor\n"
+		zType = "CO"
+    }
+    if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}){
+        paragraphText = paragraphText + "Smoke Sensor\n"
+		zType = "Smoke"
+    }
+    if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}){
+        paragraphText = paragraphText + "GlassBreak Sensor\n"
+		zType = "GlassBreak"
+    }
+	app.clearSetting("newZoneLabel")
+	app.clearSetting("newZoneType")
     dynamicPage(name: "editZoneMapPage", title: ""){
-        section("<h1>${zoneDevice.label}</h1>"){
-            paragraph paragraphText
-        }
+        section("<h1>Edit a zone in Envisalink</h1>"){
+			paragraph "${zoneDevice.name}"
+			paragraph paragraphText
+            paragraph ""
+           	input "newZoneLabel", "text", title: "Zone Label", required: true, multiple: false, defaultValue: zoneDevice.label, submitOnChange: false
+            input "newZoneType", "enum", title: "Type of Sensor?", required: true, multiple: false, defaultValue: zType,
+                options: [[0:"Contact"],[1:"Motion"],[2:"CO"],[3:"Smoke"],[4:"GlassBreak"],[99:"REMOVE ZONE"]]
+		}
 
     }
 }
@@ -457,27 +496,57 @@ def createCodeMap(){
 
 def createZone(){
     ifDebug("Starting validation of ${zoneName} ZoneType: ${zoneType}")
-    String formatted = String.format("%03d", zoneNumber)
-    String deviceNetworkId
+	createNewZone(zoneName, zoneType, zoneNumber)
+}
 
+def createNewZone(zoneName, zoneType, zoneNumber) {
+    String formatted = String.format("%03d", zoneNumber)
+	String deviceNetworkId
     if (zoneType == "0"){
 	    deviceNetworkId = state.EnvisalinkDNI + "_" + formatted
-    }else{
+    } else if (zoneType == "1"){
         deviceNetworkId = state.EnvisalinkDNI + "_M_" + formatted
+    } else if (zoneType == "2"){
+        deviceNetworkId = state.EnvisalinkDNI + "_C_" + formatted
+    } else if (zoneType == "3"){
+        deviceNetworkId = state.EnvisalinkDNI + "_S_" + formatted
+    } else if (zoneType == "4"){
+        deviceNetworkId = state.EnvisalinkDNI + "_G_" + formatted
     }
     ifDebug("Entered zoneNumber: ${zoneNumber} formatted as: ${formatted}")
-    getEnvisalinkDevice().createZone([zoneName: zoneName, deviceNetworkId: deviceNetworkId, zoneType: zoneType])
+    getEnvisalinkDevice().createZone([zoneName: "Zone " + formatted, zoneLabel: zoneName, deviceNetworkId: deviceNetworkId, zoneType: zoneType])
     state.creatingZone = false;
 }
 
 def editZone(){
-    def childZone = getEnvisalinkDevice().getChildDevice(state.editedZoneDNI);
-	ifDebug("Starting validation of ${childZone.label}")
-    ifDebug("Attempting rename of zone to ${newZoneName}")
-    childZone.updateSetting("label",[type:"text", value:newZoneName])
-   	newZoneName = null;
-    state.editingZone = false
-    state.editedZoneDNI = null;
+	def childZone = getEnvisalinkDevice().getChildDevice(state.editedZoneDNI);
+//	log.debug("(editZone) childZone [${childZone}]")
+//	log.debug("Starting validation of device [${state.editedZoneDNI}] (" + childZone.getDisplayName()) + ")"
+//	log.debug("Attempting rename of zone to [${newZoneLabel}]")
+	if (childZone) {
+		def childZoneId = childZone.getDeviceNetworkId().reverse().take(3).reverse()
+		def childZoneLabel = childZone.getDisplayName()
+		def CZT = childZone.getDeviceNetworkId().tokenize("_")
+		def childZoneType = (CZT.size() < 3)? "0":(CZT[1] == "M")? "1":(CZT[1] == "C")? "2":(CZT[1] == "S")? "3":(CZT[1] == "G")? "4": "0"
+		log.debug("CZT size = ${CZT.size()}  CZT [${CZT}]  childZoneType [${childZoneType}]")
+		log.debug("Attempting edit of zone: [${childZoneLabel}] [${childZoneType}] [${childZoneId}] to  [${newZoneLabel}] [${newZoneType}] [${childZoneId}]")
+		if (childZoneType != newZoneType) {
+			// remove the zone and recreate
+			getEnvisalinkDevice().removeZone(zoneName:childZone.getDisplayName(), deviceNetworkId: childZone.getDeviceNetworkId())
+			log.debug("Removed zone: [${childZoneLabel}] [${childZoneType}] [${childZoneId}]")
+			if (newZoneType != "99") {
+				//recreate the zone
+				createNewZone(newZoneLabel, newZoneType, childZoneId.toInteger())
+				log.debug("Created zone: [${childZoneLabel}] [${childZoneType}] [${childZoneId}]")
+			}
+		} else if (childZoneLabel != newZoneLabel) {
+			childZone.setDisplayName(newZoneLabel)
+		}
+	}
+	newZoneType = null
+	newZoneName = null;
+	state.editingZone = false
+	state.editedZoneDNI = null;
 
 }
 
@@ -514,9 +583,9 @@ def hsmHandler(evt) {
 								getEnvisalinkDevice().ArmHome()
 							break
 							case "armedNight":
-								ifDebug("Sending Arm Home")
+								ifDebug("Sending Arm Night")
 								speakArmingNight()
-								getEnvisalinkDevice().ArmHome()
+								getEnvisalinkDevice().ArmNight()
 							break
 						}
 					}
@@ -780,7 +849,9 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = "0.8.1"
+	def appVersion = version()
+	def driverVersion = (getEnvisalinkDevice() == null) ? "Not Yet Installed" : getEnvisalinkDevice().version()
+	state.version = " App [" + appVersion + "]  Driver [" + driverVersion + "]"
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
@@ -795,9 +866,9 @@ private logError(msg){
 def getEnvisalinkDevice(){
 	ifDebug("getEnvisalinkDevice")
 	def childDevices = getChildDevices()
-	ifDebug("childDevices: ${childDevices}")
+//	ifDebug("childDevices: ${childDevices}")
 	def envisalinkDevice = childDevices[0]
-	ifDebug("childDevices: ${envisalinkDevice}")
+//	ifDebug("childDevices: ${envisalinkDevice}")
 	return envisalinkDevice
 }
 
@@ -831,9 +902,10 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
-* Version: 0.6
-*	Vista (Honeywell) support
-*
+* Version: 0.5.2
+*   Addtional Vista fixes and improvements from Cybrmage
+*   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
+* 
 * Version: 0.5.1
 *	Fix child device variable mix up
 *
