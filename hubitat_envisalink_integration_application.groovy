@@ -848,7 +848,11 @@ private removeChildDevices(delete) {
 }
 
 def showTitle(){
-	state.version = " App [" + version() + "]  Driver [" + getEnvisalinkDevice().version() + "]"
+	if (getEnvisalinkDevice()) {
+		state.version = " App [" + version() + "]  Driver [" + getEnvisalinkDevice().version() + "]"
+	} else {
+		state.version = " App [" + version() + "]  Driver [ No Driver Loaded Yet ]"
+	}
 	section(){paragraph "<img src='http://www.eyezon.com/imgs/EYEZONnewSeeWhatMattersn200.png''</img><br> Version: $state.version <br>"}
 }
 
