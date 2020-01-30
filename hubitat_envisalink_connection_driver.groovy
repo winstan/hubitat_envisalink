@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.2" }
+def version() { return "Envisalink 0.8.3" }
 metadata {
 		definition (name: "Envisalink Connection", 
 			namespace: "dwb", 
@@ -727,6 +727,7 @@ def parse(String message) {
 			}
 			if ( mDisplay.startsWith("CHECK") ) {
 				// check is fired when the zone is tripped and it is Vista zone type 12 (24hr monitor)
+                log.info "Vista CHECK just ran.." 
 				ifDebug("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
 				zoneOpen("000" + mUserOrZone.toString(), true)
 			}
@@ -1093,6 +1094,7 @@ private partitionDisarmed(){
 
 		if (location.hsmStatus != "disarmed")
 		{
+            //log.info "partitionDisarmed: location.hsmStatus= $location.hsmStatus setting hsmSetArm=disarm"
 			sendLocationEvent(name: "hsmSetArm", value: "disarm"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"disarm\")")
 		}
 	}
@@ -1223,6 +1225,7 @@ private systemArmedHome(){
 
 		if (location.hsmStatus != "armedHome")
 		{
+            //log.info "systemArmedHome() hsmStatus=$location.hsmStatus  setting hsmSetArm=armHome"
 			sendLocationEvent(name: "hsmSetArm", value: "armHome"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"armHome\")")
 		}
 	}
@@ -1256,6 +1259,7 @@ private systemError(message){
 
 private clearAllZones() {
 	ifDebug("clearAllZones: called...")
+    //log.info "clearAllZones running"
 	def zones = getChildDevices()
 	zones.each {
 		def zoneDevice = getChildDevice(it.deviceNetworkId)
@@ -1264,30 +1268,35 @@ private clearAllZones() {
 			if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
 				if (zoneDevice.latestValue("contact") == "open") {
 					ifDebug("clearAllZones: Zone ${zID} Contact close")
+                    //log.info "CAZ contact closed: ${zID} it was open"
 					zoneDevice.close()
 					zoneDevice.unschedule()
 				}
 			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
 				if (zoneDevice.latestValue("motion") == "active") {
 					ifDebug("clearAllZones: Zone ${zID} Motion Inactive")
+                    //log.info "CAZ motion inactive: ${zID} it was active"
 					zoneDevice.inactive()
 					zoneDevice.unschedule()
 				}
 			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
 				if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
 					ifDebug("clearAllZones: Zone ${zID} Carbon Monoxide clear")
+                    //log.info "CAZ carbon ${zID} was not clear.  Clearing"
 					zoneDevice.clear()
 					zoneDevice.unschedule()
 				}
 			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
 				if (zoneDevice.latestValue("smoke") != "clear") {
 					ifDebug("clearAllZones: Zone ${zID} Smoke Detector clear")
+                    //log.info "CAZ smoke ${zID} was not clear.  Clearing"
 					zoneDevice.clear()
 					zoneDevice.unschedule()
 				}
 			} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
 				if (zoneDevice.latestValue("shock") != "clear") {
 					ifDebug("clearAllZones: Zone ${zID} GlassBreak Detector clear")
+                    //log.info "CAZ glass ${zID} was not clear.  Clearing"
 					zoneDevice.clear()
 					zoneDevice.unschedule()
 				}
@@ -1318,33 +1327,51 @@ private getZoneDevice(zoneId) {
 private zoneOpen(message, Boolean autoReset = false){
 	def zoneDevice
 	def substringCount = message.size() - 3
+    def myStatus
 	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
 	if (zoneDevice){
 		ifDebug(zoneDevice)
 		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
-			ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
-			zoneDevice.open()
-			if ((PanelType as int == 1) && autoReset) {
-				zoneDevice.unschedule()
-				zoneDevice.runIn(60,"close")
-			}
+            //myStatus = zoneDevice.latestValue("contact")
+            //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+            //if (zoneDevice.latestValue("contact") != "open") {
+                ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
+			    zoneDevice.open()
+			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
+            //}
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
-			ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.active()
-			zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
-			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
+            //myStatus = zoneDevice.latestValue("motion")
+            //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+            //if (zoneDevice.latestValue("motion") != "active") {
+			    ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.active()
+			    zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
+			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
+            //}
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
-			ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.detected()
-			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //myStatus = zoneDevice.latestValue("carbonMonoxide")
+            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            //if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
+			    ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.detected()
+			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //}
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
-			ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.detected()
-			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //myStatus = zoneDevice.latestValue("smoke")
+            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            //if (zoneDevice.latestValue("smoke") == "clear") {
+			    ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.detected()
+			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //}
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
-			ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.detected()
-			if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //myStatus = zoneDevice.latestValue("shock")
+            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            //if (zoneDevice.latestValue("shock") == "clear") {
+			    ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.detected()
+			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+            //}
 		}
 	}
 }
@@ -1352,30 +1379,51 @@ private zoneOpen(message, Boolean autoReset = false){
 private zoneClosed(message){
 	def zoneDevice
 	def substringCount = message.size() - 3
+    def myStatus
 	zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
 	if (zoneDevice){
 		ifDebug(zoneDevice)
 		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}){
-			ifDebug("Contact Closed")
-			zoneDevice.close()
-            if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            //myStatus = zoneDevice.latestValue("contact")
+            //log.info "ZC Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+            if (zoneDevice.latestValue("contact") != "closed") {
+			    ifDebug("Contact Closed")
+			    zoneDevice.close()
+                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
-			ifDebug("Motion Inactive")
-			zoneDevice.inactive()
-			zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
-			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            //myStatus = zoneDevice.latestValue("motion")
+            //log.info "ZC Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+            if (zoneDevice.latestValue("motion") != "inactive") {
+			    ifDebug("Motion Inactive")
+			    zoneDevice.inactive()
+			    zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
+			    if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
-			ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.clear()
-			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            //myStatus = zoneDevice.latestValue("carbonMonoxide")
+            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
+			    ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.clear()
+			    if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
-			ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.clear()
-			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            //myStatus = zoneDevice.latestValue("smoke")
+            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            if (zoneDevice.latestValue("smoke") != "clear") {
+			    ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.clear()
+			    if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
-			ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
-			zoneDevice.clear()
-			if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            //myStatus = zoneDevice.latestValue("shock")
+            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+            if (zoneDevice.latestValue("shock") != "clear") {
+			    ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+			    zoneDevice.clear()
+			    if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+            }
 		}
 	}
 }
@@ -1415,9 +1463,9 @@ private send_Event(evnt) {
 	13: "Keybus Transmit Keystring Timeout",
 	14: "Keybus Interface Not Functioning (the TPI cannot communicate with the security system)",
 	15: "Keybus Busy (Attempting to Disarm or Arm with user code)",
-	16: "Keybus Busy – Lockout (The panel is currently in Keypad Lockout – too many disarm attempts)",
-	17: "Keybus Busy – Installers Mode (Panel is in installers mode, most functions are unavailable)",
-	18: "Keybus Busy – General Busy (The requested partition is busy)",
+	16: "Keybus Busy ¿ Lockout (The panel is currently in Keypad Lockout ¿ too many disarm attempts)",
+	17: "Keybus Busy ¿ Installers Mode (Panel is in installers mode, most functions are unavailable)",
+	18: "Keybus Busy ¿ General Busy (The requested partition is busy)",
 	20: "API Command Syntax Error",
 	21: "API Command Partition Error (Requested Partition is out of bounds)",
 	22: "API Command Not Supported",
@@ -1675,8 +1723,8 @@ private send_Event(evnt) {
 	"121" : ["Duress","User","A duress code has been entered by a user"],
 	"122" : ["Silent","Zone","A silent hold-up alarm exists"],
 	"123" : ["Audible","Zone","An audible hold-up alarm exists"],
-	"124" : ["Duress – Access granted","Zone","A duress code has been entered and granted at an entry door"],
-	"125" : ["Duress – Egress granted","Zone","A duress code has been entered and granted at an exit door"],
+	"124" : ["Duress ¿ Access granted","Zone","A duress code has been entered and granted at an entry door"],
+	"125" : ["Duress ¿ Egress granted","Zone","A duress code has been entered and granted at an exit door"],
 	"126" : ["Hold-up suspicion print","User","A user has activated a trigger to indicate a suspicious condition"],
 	"129" : ["Panic Verifier","Zone","A confirmed Hold-up condition exists"],
 	"13" : ["Burglar Alarm","ALARM",""],
@@ -2022,6 +2070,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.3
+*   Added selective-closing in zoneClose() (only close if open)
+*   Added selective-clearing in clearAllZones() (only clear if open)
 * Version: 0.8.2
 *   Addtional Vista fixes merged from Cybrmage 
 *   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
