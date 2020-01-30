@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink 0.5.2" }
+def version() { return "Envisalink 0.5.3" }
 
 definition(
     name: "Envisalink Integration",
@@ -552,10 +552,12 @@ def editZone(){
 
 //events and actions
 def hsmHandler(evt) {
-    log.info "HSM Alert: $evt.value"
-	sendEvent(name: "HSM Event", value: evt.value)
-
-	if (evt.value == state.lastHSMEvent) return
+    //def myStatus = getEnvisalinkDevice().currentValue("Status")
+    //log.info "ENVIS HSM Value: $evt.value Status: ${myStatus} LAST: $state.lastHSMEvent"
+    
+    //the call below appears unnecessary and causes it to throw a quick disarm hsm event during armHome/armAway events. 
+	//sendEvent(name: "HSM Event", value: evt.value)
+    if (evt.value == state.lastHSMEvent) return
 	state.lastHSMEvent = evt.value
 
 	def lock
@@ -576,16 +578,22 @@ def hsmHandler(evt) {
 								ifDebug("Sending Arm Away")
 								speakArmingAway()
 								getEnvisalinkDevice().ArmAway()
+                                //myStatus = getEnvisalinkDevice().currentValue("Status")
+                                //log.info "HSM Sending evt.value=armedAway: getEnvisalinkDevice status=${myStatus}"
 							break
 							case "armedHome":
 								ifDebug("Sending Arm Home")
 								speakArmingHome()
 								getEnvisalinkDevice().ArmHome()
+                                //myStatus = getEnvisalinkDevice().currentValue("Status")
+                                //log.info "HSM Sending evt.value=armedHome: getEnvisalinkDevice status=${myStatus}"
 							break
 							case "armedNight":
 								ifDebug("Sending Arm Night")
 								speakArmingNight()
 								getEnvisalinkDevice().ArmNight()
+                                //myStatus = getEnvisalinkDevice().currentValue("Status")
+                                //log.info "ENVIS HSM Arming Night: Status: ${myStatus}"
 							break
 						}
 					}
@@ -601,6 +609,8 @@ def hsmHandler(evt) {
 					{
 						speakDisarming()
 						getEnvisalinkDevice().Disarm()
+                        //myStatus = getEnvisalinkDevice().currentValue("Status")
+                        //log.info "HSM Sending evt.value=disarmed HSM getEnvisalinkDevice status: ${myStatus}"
 					}
 				}
 			}
@@ -902,6 +912,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.3
+*   Fixed spurious HSM Event in hsmHandler()
+* 
 * Version: 0.5.2
 *   Addtional Vista fixes and improvements from Cybrmage
 *   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
