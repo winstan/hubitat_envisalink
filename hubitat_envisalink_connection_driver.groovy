@@ -736,21 +736,29 @@ def parse(String message) {
 			}
 		}  
 		if(message.take(3) == "%01") {
+            
 			ifDebug("Received %01 (Zone State Change) message")
-            def trimmedMessage = message[4..19]
-            def ZoneState = hubitat.helper.HexUtils.hexStringToByteArray(trimmedMessage)
-			//def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
-      
-			//log.info "         Zone State Change: Zone String [" + ZoneState + "]" 
-            //log.info "ZoneMessage: $message"
-			for (i = 1; i <65; i++) {
-				if ( ZoneState & (2**(i-1)) ) {
-					ifDebug("     Zone State Change: Zone " + i + " Tripped!")
-					zoneOpen("000" + i.toString())
-				} else {
-					zoneClosed("000" + i.toString())
-				}
-			}
+           
+            		def trimmedMessage = message[4..19]
+            
+            		def ZoneState = hubitat.helper.HexUtils.hexStringToByteArray(trimmedMessage)
+    
+            		int counter = 0
+           		for (int i = 0; i < ZoneState.length; i++)
+           		{
+               			byte b = ZoneState[i]
+               			byte mask = 0x01
+               			for (int j = 0; j < 8; j++)
+               			{
+                  			counter++
+                  			mask << 1
+			
+                  			if (isBitSet(b, j))
+                      				zoneOpen("000" + counter)
+                  			else
+                      				zoneClosed("000" + counter)
+               			}
+            		}
 		}
 		if(message.take(3) == "%02") {
 			ifDebug("Received %02 (Partition State Change) message")
@@ -843,6 +851,12 @@ def parse(String message) {
 			ifDebug("Received command acknowledge message (${message})")
 		}
 	}
+}
+
+
+private isBitSet(byte b, int bit)
+{
+    return (b & (1 << bit)) != 0;
 }
 
 private getCIDQualifier(String Event, String Code) {
@@ -1744,8 +1758,8 @@ private send_Event(evnt) {
 	"121" : ["Duress","User","A duress code has been entered by a user"],
 	"122" : ["Silent","Zone","A silent hold-up alarm exists"],
 	"123" : ["Audible","Zone","An audible hold-up alarm exists"],
-	"124" : ["Duress ¿ Access granted","Zone","A duress code has been entered and granted at an entry door"],
-	"125" : ["Duress ¿ Egress granted","Zone","A duress code has been entered and granted at an exit door"],
+	"124" : ["Duress Â¿ Access granted","Zone","A duress code has been entered and granted at an entry door"],
+	"125" : ["Duress Â¿ Egress granted","Zone","A duress code has been entered and granted at an exit door"],
 	"126" : ["Hold-up suspicion print","User","A user has activated a trigger to indicate a suspicious condition"],
 	"129" : ["Panic Verifier","Zone","A confirmed Hold-up condition exists"],
 	"13" : ["Burglar Alarm","ALARM",""],
