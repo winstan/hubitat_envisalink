@@ -83,7 +83,6 @@ metadata {
 			input("installerCode", "text", title: "Installer Code", description: "Installer Code is required if you wish to program the panel from this driver", required: false)
 			def pollRate = ["0" : "Disabled", "1" : "Poll every minute", "5" : "Poll every 5 minutes", "10" : "Poll every 10 minutes", "15" : "Poll every 15 minutes", "30" : "Poll every 30 minutes (not recommended)"]
 			input ("poll_Rate", "enum", title: "Device Poll Rate", options: pollRate, defaultValue: 0)
-
 			if (installerCode) {
 				def delayOptions = ["030" : "30 seconds", "045" : "45 seconds", "060" : "60 seconds", "090" : "90 seconds", "120" : "120 seconds"]
 				input ("entry_delay1", "enum", title: "Entry Delay 1", options: delayOptions, defaultValue: 060)
@@ -735,11 +734,15 @@ def parse(String message) {
 				ifDebug("     Keypad Update: Zone " + mUserOrZone + " TROUBLE/TAMPER notification!")
 				zoneTamper("000" + mUserOrZone.toString())
 			}
-		}
+		}  
 		if(message.take(3) == "%01") {
 			ifDebug("Received %01 (Zone State Change) message")
-			def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
-			ifDebug("         Zone State Change: Zone String [" + ZoneState + "]")
+            def trimmedMessage = message[4..19]
+            def ZoneState = hubitat.helper.HexUtils.hexStringToByteArray(trimmedMessage)
+			//def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
+      
+			//log.info "         Zone State Change: Zone String [" + ZoneState + "]" 
+            //log.info "ZoneMessage: $message"
 			for (i = 1; i <65; i++) {
 				if ( ZoneState & (2**(i-1)) ) {
 					ifDebug("     Zone State Change: Zone " + i + " Tripped!")
@@ -1044,10 +1047,14 @@ private logError(msg){
 
 private partitionReady(){
 	ifDebug("partitionReady")
-	if (device.currentValue("Status") != PARTITIONREADY) { send_Event(name:"Status", value: PARTITIONREADY, isStateChange: true) }
+    def st = device.currentValue("Status")
+    def sw = device.currentValue("switch")
+    def co = device.currentValue("contact")
+    if (device.currentValue("Status") != PARTITIONREADY) { send_Event(name:"Status", value: PARTITIONREADY, isStateChange: true) }  
 	if (device.currentValue("switch") != "off") { send_Event(name: "switch", value: "off", isStateChange: true) }
 	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
-	state.armState = "disarmed"
+    //log.info "partitionReady() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
+    state.armState = "disarmed"
 	state.newCode = ""
 	state.newCodePosition = ""
 	state.newName = ""
@@ -1062,8 +1069,13 @@ private partitionReady(){
 
 private partitionNotReady(){
 	ifDebug("partitionNotReady")
+    def st = device.currentValue("Status")
+    def sw = device.currentValue("switch")
+    def co = device.currentValue("contact")
 	if (device.currentValue("Status") != PARTITIONNOTREADY) { send_Event(name:"Status", value: PARTITIONNOTREADY, isStateChange: true) }
 	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
+    log.info "partitionNotReady() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
+
 }
 
 private partitionReadyForForcedArmEnabled(){
@@ -1082,10 +1094,19 @@ private partitionAlarm(){
 
 private partitionDisarmed(){
 	ifDebug("partitionDisarmed")
-	if (device.currentValue("Status") != PARTITIONDISARMED) { send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) }
+    def st = device.currentValue("Status")
+    def sw = device.currentValue("switch")
+    def co = device.currentValue("contact")
+	//if ((device.currentValue("Status") != PARTITIONDISARMED) && (device.currentValue("Status") != PARTITIONNOTREADY)) { 
+    if ((device.currentValue("Status") != PARTITIONDISARMED) || (state.armState != "disarmed")) { 
+            send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) 
+            log.info "partitionDisarmed() send Event Status = Disarmed"
+    }
 	if (device.currentValue("switch") != "off") { send_Event(name:"switch", value: "off", isStateChange: true) }
 	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
-	if (state.armState != "disarmed"){
+    log.info "partitionDisarmed() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
+    // partitionDisarmed() state.armState = arming_home: Status: Ready switch: off contact: closed
+    if ((state.armState != "disarmed")) { // && (state.alarmState != "arming_home") && (state.alarmState != "armed_home")) {
 		ifDebug("disarming")
 		state.armState = "disarmed"
 		parent.unlockIt()
@@ -1334,44 +1355,44 @@ private zoneOpen(message, Boolean autoReset = false){
 		if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
             //myStatus = zoneDevice.latestValue("contact")
             //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
-            //if (zoneDevice.latestValue("contact") != "open") {
+            if (zoneDevice.latestValue("contact") != "open") {
                 ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
 			    zoneDevice.open()
 			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
-            //}
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
             //myStatus = zoneDevice.latestValue("motion")
             //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
-            //if (zoneDevice.latestValue("motion") != "active") {
+            if (zoneDevice.latestValue("motion") != "active") {
 			    ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
 			    zoneDevice.active()
 			    zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
 			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
-            //}
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
             //myStatus = zoneDevice.latestValue("carbonMonoxide")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
-            //if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
+            if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
 			    ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
 			    zoneDevice.detected()
 			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
-            //}
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
             //myStatus = zoneDevice.latestValue("smoke")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
-            //if (zoneDevice.latestValue("smoke") == "clear") {
+            if (zoneDevice.latestValue("smoke") == "clear") {
 			    ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
 			    zoneDevice.detected()
 			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
-            //}
+            }
 		} else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
             //myStatus = zoneDevice.latestValue("shock")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
-            //if (zoneDevice.latestValue("shock") == "clear") {
+            if (zoneDevice.latestValue("shock") == "clear") {
 			    ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
 			    zoneDevice.detected()
 			    if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
-            //}
+            }
 		}
 	}
 }
@@ -1463,9 +1484,9 @@ private send_Event(evnt) {
 	13: "Keybus Transmit Keystring Timeout",
 	14: "Keybus Interface Not Functioning (the TPI cannot communicate with the security system)",
 	15: "Keybus Busy (Attempting to Disarm or Arm with user code)",
-	16: "Keybus Busy ¿ Lockout (The panel is currently in Keypad Lockout ¿ too many disarm attempts)",
-	17: "Keybus Busy ¿ Installers Mode (Panel is in installers mode, most functions are unavailable)",
-	18: "Keybus Busy ¿ General Busy (The requested partition is busy)",
+	16: "Keybus Busy - Lockout (The panel is currently in Keypad Lockout - too many disarm attempts)",
+	17: "Keybus Busy - Installers Mode (Panel is in installers mode, most functions are unavailable)",
+	18: "Keybus Busy - General Busy (The requested partition is busy)",
 	20: "API Command Syntax Error",
 	21: "API Command Partition Error (Requested Partition is out of bounds)",
 	22: "API Command Not Supported",
@@ -2073,20 +2094,30 @@ private send_Event(evnt) {
 * Version: 0.8.3
 *   Added selective-closing in zoneClose() (only close if open)
 *   Added selective-clearing in clearAllZones() (only clear if open)
+*   Added selective-opening in zoneOpen() (only open if closed)
+*   Support for 32 zone Vista devices
+*   Fix partitionDisarm() - shouldn't go to Disarm from ready/unready
+*   Shouldn't trigger brief HSM disarm when arming
+* 
 * Version: 0.8.2
 *   Addtional Vista fixes merged from Cybrmage 
 *   New device types supported - CO2, Smoke, Glassbreak (requires external driver)
 *   CID data now logged to state variables
+*
 * Version: 0.8.1
 *   Fix logging
 *   Fix panel type initialization
 *   Fix Disarm bug for DSC
+*
 * Version: 0.8
 *   Vista (Honeywell) support
+*
 * Version: 0.7
 *   Override armState if panel sends Armed Home
+*
 * Version: 0.6
 *   Fix LED State, Thanks cybrmage
+*
 * Version: 0.5
 *   Holistic Refactor
 *   Program User Codes
