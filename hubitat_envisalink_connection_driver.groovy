@@ -2112,6 +2112,7 @@ private send_Event(evnt) {
 *   Support for 32 zone Vista devices
 *   Fix partitionDisarm() - shouldn't go to Disarm from ready/unready
 *   Shouldn't trigger brief HSM disarm when arming
+*   Fix Zone State Change event for Vista users with lots of zones
 * 
 * Version: 0.8.2
 *   Addtional Vista fixes merged from Cybrmage 
