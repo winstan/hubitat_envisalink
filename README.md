@@ -27,11 +27,10 @@ _At this time, I only support a single partition configuration._
 * Click 'Ok' to the warning.
 * Save the file. 
 
-<i>Install Custom Drivers:</i>
-* Follow the same instructions as above to copy these URL's: [Connection
-Driver](https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy)
-[Glass Break Sensor -
-Optional](https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy)
+<b>New Driver(s) Installation:</b>
+* Follow the same instructions as above to copy these URL's: 
+** [Connection Driver](https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy)
+** [Glass Break Sensor - Optional](https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy)
 * In Hubitat, select <b>Drivers Code</b>, <b>New Driver</b>
 * Click the <b>Import</b> button and paste one of the URL's above and click 'Ok' to the warning.
 * Be sure to click 'Save' each time you add or replace the code
