@@ -726,7 +726,7 @@ def parse(String message) {
 			}
 			if ( mDisplay.startsWith("CHECK") ) {
 				// check is fired when the zone is tripped and it is Vista zone type 12 (24hr monitor)
-                log.info "Vista CHECK just ran.." 
+                //log.info "Vista CHECK just ran.." 
 				ifDebug("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
 				zoneOpen("000" + mUserOrZone.toString(), true)
 			}
@@ -737,17 +737,17 @@ def parse(String message) {
 		}  
 		if(message.take(3) == "%01") {
 			ifDebug("Received %01 (Zone State Change) message")
-            def trimmedMessage = message[4..19]
-            def ZoneState = hubitat.helper.HexUtils.hexStringToByteArray(trimmedMessage)
-			//def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
+			def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
       
-			//log.info "         Zone State Change: Zone String [" + ZoneState + "]" 
-            //log.info "ZoneMessage: $message"
+			//log.info "OLD Zone State Change: Zone String [" + ZoneState + "]" 
+            //log.info "OLD ZoneMessage: $message"
 			for (i = 1; i <65; i++) {
 				if ( ZoneState & (2**(i-1)) ) {
-					ifDebug("     Zone State Change: Zone " + i + " Tripped!")
+					ifDebug ("     Zone State Change: Zone " + i + " Tripped!")
+                    //log.info "OLD Zone State Change: Zone " + i + " Open"
 					zoneOpen("000" + i.toString())
 				} else {
+                    //log.info "OLD Zone State Change: Zone " + i + " Closed"
 					zoneClosed("000" + i.toString())
 				}
 			}
@@ -923,6 +923,9 @@ def telnetStatus(String status){
 /***********************************************************************************************************************
 *   Helpers
 */
+private isBitSet(byte b, int bit) {
+   return (b & (1 << bit)) != 0;
+}
 
 private checkTimeStamp(message){
 	if (message =~ timeStampPattern){
@@ -1069,12 +1072,12 @@ private partitionReady(){
 
 private partitionNotReady(){
 	ifDebug("partitionNotReady")
-    def st = device.currentValue("Status")
-    def sw = device.currentValue("switch")
-    def co = device.currentValue("contact")
-	if (device.currentValue("Status") != PARTITIONNOTREADY) { send_Event(name:"Status", value: PARTITIONNOTREADY, isStateChange: true) }
-	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
-    log.info "partitionNotReady() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
+    //def st = device.currentValue("Status")
+    //def sw = device.currentValue("switch")
+    //def co = device.currentValue("contact")
+	//if (device.currentValue("Status") != PARTITIONNOTREADY) { send_Event(name:"Status", value: PARTITIONNOTREADY, isStateChange: true) }
+	//if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
+    //log.info "partitionNotReady() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
 
 }
 
@@ -1094,17 +1097,17 @@ private partitionAlarm(){
 
 private partitionDisarmed(){
 	ifDebug("partitionDisarmed")
-    def st = device.currentValue("Status")
-    def sw = device.currentValue("switch")
-    def co = device.currentValue("contact")
+    //def st = device.currentValue("Status")
+    //def sw = device.currentValue("switch")
+    //def co = device.currentValue("contact")
 	//if ((device.currentValue("Status") != PARTITIONDISARMED) && (device.currentValue("Status") != PARTITIONNOTREADY)) { 
-    if ((device.currentValue("Status") != PARTITIONDISARMED) || (state.armState != "disarmed")) { 
+    if ((device.currentValue("Status") != PARTITIONDISARMED) && (state.armState != "disarmed")) { 
             send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) 
-            log.info "partitionDisarmed() send Event Status = Disarmed"
+            //log.info "partitionDisarmed() send Event Status = Disarmed"
     }
 	if (device.currentValue("switch") != "off") { send_Event(name:"switch", value: "off", isStateChange: true) }
 	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
-    log.info "partitionDisarmed() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
+    //log.info "partitionDisarmed() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
     // partitionDisarmed() state.armState = arming_home: Status: Ready switch: off contact: closed
     if ((state.armState != "disarmed")) { // && (state.alarmState != "arming_home") && (state.alarmState != "armed_home")) {
 		ifDebug("disarming")
@@ -2095,8 +2098,7 @@ private send_Event(evnt) {
 *   Added selective-closing in zoneClose() (only close if open)
 *   Added selective-clearing in clearAllZones() (only clear if open)
 *   Added selective-opening in zoneOpen() (only open if closed)
-*   Support for 32 zone Vista devices
-*   Fix partitionDisarm() - shouldn't go to Disarm from ready/unready
+*   Changes to partitionDisarm() - shouldn't go to Disarm from ready/unready
 *   Shouldn't trigger brief HSM disarm when arming
 * 
 * Version: 0.8.2
