@@ -10,7 +10,7 @@ Visit http://www.eyez-on.com/ for more information on Envisalink.
 * The Envisalink system password that you setup when installing Envisalink. 
 * Master Disarming Code
 * The static IP address of the Envisalink device.
-* Knowledge of how the Zones are laid out in your DSC Alarm system configuration. 
+* Knowledge of how the Zones are laid out in your DSC or Vista/Honeywell Alarm system configuration. 
 
 _At this time, I only support a single partition configuration._
 
@@ -45,4 +45,4 @@ _At this time, I only support a single partition configuration._
 ## Activate the Application
 1. Go to Apps and Add a new <b>User App</b>
 2. Load Envisalink Integration application
-3. Using the Envisalink Integration application, configure your IP, Password and Code to Envisalink and your Zone layout
+3. Using the Envisalink Integration application, configure your IP, Password and Code to Envisalink and your Zone layout and select which type of Alarm (DSC or Vista/Honeywell). 
