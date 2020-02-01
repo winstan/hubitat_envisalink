@@ -554,7 +554,7 @@ def editZone(){
 def hsmHandler(evt) {
     //def myStatus = getEnvisalinkDevice().currentValue("Status")
     //log.info "ENVIS HSM Value: $evt.value Status: ${myStatus} LAST: $state.lastHSMEvent"
-    
+	// 
     //the call below appears unnecessary and causes it to throw a quick disarm hsm event during armHome/armAway events. 
 	//sendEvent(name: "HSM Event", value: evt.value)
     if (evt.value == state.lastHSMEvent) return
