@@ -43,6 +43,9 @@ _At this time, I only support a single partition configuration._
 * Save the file.
 
 ## Activate the Application
+* Note: This is only required to be done the 1st time and not required for
+updates. Removing and re-activating the app will cause your zones to be
+recreated.
 1. Go to Apps and Add a new <b>User App</b>
 2. Load Envisalink Integration application
 3. Using the Envisalink Integration application, configure your IP, Password and Code to Envisalink and your Zone layout and select which type of Alarm (DSC or Vista/Honeywell). 
