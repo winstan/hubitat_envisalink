@@ -736,29 +736,17 @@ def parse(String message) {
 			}
 		}  
 		if(message.take(3) == "%01") {
-            
 			ifDebug("Received %01 (Zone State Change) message")
-           
-            		def trimmedMessage = message[4..19]
-            
-            		def ZoneState = hubitat.helper.HexUtils.hexStringToByteArray(trimmedMessage)
-    
-            		int counter = 0
-           		for (int i = 0; i < ZoneState.length; i++)
-           		{
-               			byte b = ZoneState[i]
-               			byte mask = 0x01
-               			for (int j = 0; j < 8; j++)
-               			{
-                  			counter++
-                  			mask << 1
-			
-                  			if (isBitSet(b, j))
-                      				zoneOpen("000" + counter)
-                  			else
-                      				zoneClosed("000" + counter)
-               			}
-            		}
+			def ZoneState = Integer.parseInt(message[18..19] + message[16..17] + message[14..15] + message[12..13] + message[10..11] + message[8..9] + message[6..7] + message[4..5],16)
+			ifDebug("         Zone State Change: Zone String [" + ZoneState + "]")
+			for (i = 1; i <65; i++) {
+				if ( ZoneState & (2**(i-1)) ) {
+					ifDebug("     Zone State Change: Zone " + i + " Tripped!")
+					zoneOpen("000" + i.toString())
+				} else {
+					zoneClosed("000" + i.toString())
+				}
+			}
 		}
 		if(message.take(3) == "%02") {
 			ifDebug("Received %02 (Partition State Change) message")
@@ -851,12 +839,6 @@ def parse(String message) {
 			ifDebug("Received command acknowledge message (${message})")
 		}
 	}
-}
-
-
-private isBitSet(byte b, int bit)
-{
-    return (b & (1 << bit)) != 0;
 }
 
 private getCIDQualifier(String Event, String Code) {
@@ -2112,7 +2094,6 @@ private send_Event(evnt) {
 *   Support for 32 zone Vista devices
 *   Fix partitionDisarm() - shouldn't go to Disarm from ready/unready
 *   Shouldn't trigger brief HSM disarm when arming
-*   Fix Zone State Change event for Vista users with lots of zones
 * 
 * Version: 0.8.2
 *   Addtional Vista fixes merged from Cybrmage 
