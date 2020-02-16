@@ -1,7 +1,9 @@
 # Hubitat Envisalink Integration
 
 Hubitat Envisalink Connection driver and Integration application, provides Hubitat integration with Envisalink.
-Visit http://www.eyez-on.com/ for more information on Envisalink.
+Visit http://www.eyez-on.com/ for more information on Envisalink. 
+
+<b>NOTE: the original author of this has left the HE platform, thus this code is not supported. There is another integration which works and is documented [here](https://community.hubitat.com/t/release-envisalink-app-driver-for-vista-ademco-honeywell-alarm-via-smartthings-nodeproxy/9726/35).</b>
 
 **Prerequisites**
 
