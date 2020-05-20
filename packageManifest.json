@@ -1,0 +1,38 @@
+{
+  "packageName": "Hubitat Envisalink Integration",
+  "author": "Doug Beard/Brian Wilson",
+  "version": "1.0.0",
+  "minimumHEVersion": "0.0",
+  "documentationLink": "https://github.com/bdwilson/hubitat_envisalink",
+  "communityLink": "https://community.hubitat.com/t/release-envisalink-app-driver-for-vista-ademco-honeywell-alarm-via-smartthings-nodeproxy/9726",
+  "dateReleased": "2020-05-18",
+  "drivers": [
+    {
+      "id": "43998f73-a5c9-4f32-a902-75be8e7fdaab",
+      "name": "Envisalink Connection",
+      "namespace": "dwb",
+      "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy",
+      "required": true,
+      "version": "0.8.3"
+    },
+    {
+      "id": "13f61923-d0a4-4c2f-bf3f-76bd04b539e8",
+      "name": "Virtual GlassBreak Detector",
+      "namespace": "dwb",
+      "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy",
+      "required": false,
+      "version": "1.0.0"
+    }
+  ],
+  "apps": [
+    {
+      "id": "366d914e-ae28-4d7c-9e96-732348419967",
+      "name": "Envisalink Integration",
+      "namespace": "dwb",
+      "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
+      "required": true,
+      "oauth": false,
+      "version": "0.5.3"
+    }
+  ]
+}
