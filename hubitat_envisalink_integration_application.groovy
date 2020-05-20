@@ -37,7 +37,7 @@ definition(
     author: "Doug Beard",
     description: "Integrate your DSC Alarm system, using Envisalink 3 or 4",
     category: "My Apps",
-    importUrl: "https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
+    importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
     iconUrl: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX2Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",
     iconX3Url: "https://dougbeardrdiag.file.core.windows.net/icons/HomeSecIcon.PNG",

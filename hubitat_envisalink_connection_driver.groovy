@@ -34,7 +34,7 @@ metadata {
 		definition (name: "Envisalink Connection", 
 			namespace: "dwb", 
 			author: "Doug Beard", 
-			importUrl: "https://raw.githubusercontent.com/omayhemo/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy") {
+			importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy") {
 			capability "Initialize"
 			capability "Telnet"
 			capability "Alarm"
