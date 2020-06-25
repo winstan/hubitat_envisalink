@@ -22,6 +22,14 @@
       "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy",
       "required": false,
       "version": "1.0.0"
+    },
+    {
+      "id": "fc055cc4-5328-495a-bac7-5c56c782db6d",
+      "name": "Envisalink Connection",
+      "namespace": "dwb",
+      "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy",
+      "required": true,
+      "version": "0.8.4"
     }
   ],
   "apps": [

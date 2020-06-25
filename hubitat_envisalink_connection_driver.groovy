@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.3" }
+def version() { return "Envisalink 0.8.4" }
 metadata {
 		definition (name: "Envisalink Connection", 
 			namespace: "dwb", 
@@ -317,7 +317,17 @@ private composeArmHome(){
 	}
 	sendTelnetCommand(message)
 }
-
+//CHANGED THIS TO ALLOW NIGHT ARMING FOR DSC PANELS
+private composeArmNight(){
+	ifDebug("composeArmNight")
+	state.armState = "arming_night"
+	def message = tpiCommands["ArmNight"]
+	if(PanelType as int == 1) {
+		message = masterCode + "3"
+	}
+	sendTelnetCommand(message)
+}
+/*
 private composeArmNight(){
 	if(PanelType as int == 0) {
 		ifDebug("composeArmNight - NOT SUPPORTED BY DSC PANEL")
@@ -328,7 +338,7 @@ private composeArmNight(){
 		sendTelnetCommand(message)
 	}
 }
-
+*/
 private composeChimeToggle(){
 	ifDebug("composeChimeToggle")
 	def message = tpiCommands["ToggleChime"]
@@ -391,9 +401,13 @@ private composeKeyStrokes(data){
 private composeMasterCode(){
 	ifDebug("composeMasterCode")
 	if(PanelType as int == 0) {
-		def sendTelnetCommand = tpiCommands["CodeSend"] + masterCode
-		ifDebug(sendTelnetCommand)
-		sendTelnetCommand(sendTelnetCommand)
+        def message = tpiCommands["CodeSend"] + masterCode
+		ifDebug(message)
+		//sendTelnetCommand(message)
+        //EDITED TO SEND TELNET COMMAND A DIFFERENT WAY
+        message = generateChksum(message)
+        ifDebug(message)
+        sendHubCommand(new hubitat.device.HubAction(message, hubitat.device.Protocol.TELNET))
 	} else {
 		ifDebug("Not supported by Vista TPI")
 	}
@@ -572,7 +586,7 @@ def parse(String message) {
 		}
 
 		if(tpiResponses[message.take(3) as int] == CODEREQUIRED) {
-			composeMasterCode()
+            composeMasterCode()
 		}
 
 		if(tpiResponses[message.take(3) as int] == MASTERCODEREQUIRED) {
@@ -654,11 +668,13 @@ def parse(String message) {
 		}
 
 		if(tpiResponses[message.take(3) as int] == USEROPENING){
-			parseUser(message)
+			partitionArmedNight()
+            parseUser(message)
 		}
 
 		if(tpiResponses[message.take(3) as int] == USERCLOSING){
-			parseUser(message)
+			partitionArmedNight()
+            parseUser(message)
 		}
 
 		if(tpiResponses[message.take(3) as int] == SPECIALCLOSING){
@@ -1154,10 +1170,10 @@ private partitionArmedHome(){
 //		systemArmed()
 //	}
 }
-
+// CHANGED THIS TO READ A DIFFERENT KEYPAD STATE FOR NIGHT MODE
 private partitionArmedNight(){
 	ifDebug("partitionArmedNight")
-	if (device.currentValue("Status") != PARTITIONARMEDNIGHT) { send_Event(name:"Status", value: PARTITIONARMEDNIGHT, isStateChange: true) }
+	if (device.currentValue("Status") != USERCLOSING) { send_Event(name:"Status", value: PARTITIONARMEDNIGHT, isStateChange: true) }
 	if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
 	if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
 	systemArmedNight()
@@ -1718,6 +1734,8 @@ private send_Event(evnt) {
 		ToggleChime: "0711*4",
 		ArmHome: "0311",
 		ArmAway: "0301",
+        //ArmNight: "0711*9",
+        ArmNight: "0321",
 	    ArmAwayZeroEntry: "0321",
 	    PanicFire: "0601",
 	    PanicAmbulance: "0602",
@@ -2094,6 +2112,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.4
+*   mark.labuda Added ArmNight code for DSC panel
+* 
 * Version: 0.8.3
 *   Added selective-closing in zoneClose() (only close if open)
 *   Added selective-clearing in clearAllZones() (only clear if open)
