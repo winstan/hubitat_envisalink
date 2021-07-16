@@ -40,7 +40,7 @@
       "location": "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_integration_application.groovy",
       "required": true,
       "oauth": false,
-      "version": "0.5.3"
+      "version": "0.5.4"
     }
   ]
 }

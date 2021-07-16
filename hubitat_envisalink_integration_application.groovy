@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink 0.5.3" }
+def version() { return "Envisalink 0.5.4" }
 
 definition(
     name: "Envisalink Integration",
@@ -367,7 +367,7 @@ def zoneMapsPage() {
         }
 
        section("<h2>Existing Zones</h2>"){
-            getEnvisalinkDevice().getChildDevices().sort({ a, b -> a.name <=> b.name }).each{
+            getEnvisalinkDevice().getChildDevices().each{
 				href (name: "editZoneMapPage", title: "${it.name} - ${it.label}",
 					  description: "Zone Details\t${it.getTypeName()}",
 					  params: [deviceNetworkId: it.deviceNetworkId],
