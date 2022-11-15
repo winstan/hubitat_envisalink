@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink 0.5.4" }
+def version() { return "Envisalink 0.5.5" }
 
 definition(
     name: "Envisalink Integration",
@@ -912,6 +912,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.5
+* Whitespace changes only - remove all TABs
+*
 * Version: 0.5.3
 *   Fixed spurious HSM Event in hsmHandler()
 * 

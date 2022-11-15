@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.4" }
+def version() { return "Envisalink 0.8.5" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -2108,6 +2108,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.5
+*   Whitespace changes only - remove all TABs
+*
 * Version: 0.8.4
 *   mark.labuda Added ArmNight code for DSC panel
 * 
