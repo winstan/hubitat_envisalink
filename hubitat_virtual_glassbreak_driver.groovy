@@ -16,18 +16,18 @@
 ***********************************************************************************************************************/
 
 metadata {
-		definition (name: "Virtual GlassBreak Detector", 
-			namespace: "dwb",
-			author: "CybrMage", 
-			importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy") {
-			capability "Initialize"
-			capability "ShockSensor"
-			
-			command "clear"
-			command "detected"
+    definition (name: "Virtual GlassBreak Detector", 
+        namespace: "dwb",
+        author: "CybrMage", 
+        importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy") {
+            capability "Initialize"
+            capability "ShockSensor"
+            
+            command "clear"
+            command "detected"
 
-			attribute   "shock", "string"
-		}
+            attribute   "shock", "string"
+        }
 }
 
 /***********************************************************************************************************************
@@ -35,19 +35,19 @@ metadata {
 */
 
 def installed() {
-	initialize()
+    initialize()
 }
 
 def updated() {
-	initialize()
+    initialize()
 }
 
 def initialize() {
-	unschedule()
+    unschedule()
 }
 
 def uninstalled() {
-	unschedule()
+    unschedule()
 }
 
 /***********************************************************************************************************************
@@ -55,9 +55,9 @@ def uninstalled() {
 */
 
 def clear(){
-	sendEvent(name: "shock", value: "clear")
+    sendEvent(name: "shock", value: "clear")
 }
 
 def detected(){
-	sendEvent(name: "shock", value: "detected")
+    sendEvent(name: "shock", value: "detected")
 }
