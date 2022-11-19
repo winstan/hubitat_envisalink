@@ -806,7 +806,7 @@ def offNoOnSwitchesOff(){
 }
 
 def lockUseHandler(evt){
-    log.warn "lockUseHandler ${evt.displayName}"
+    log.info "lockUseHandler ${evt.displayName}"
     def data = evt.data
     def isEncrypted = false
     if (data && !data[0].startsWith("{")) {
