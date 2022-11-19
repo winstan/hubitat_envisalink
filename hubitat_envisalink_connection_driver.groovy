@@ -44,7 +44,7 @@ metadata {
             capability "TamperAlert"
             capability "ContactSensor"
             
-            command "sendTelnetCommand", ["String"]
+            command "sendTelnetCommand", [[name: "cmd*", type: "STRING"]]
             command "StatusReport"
             command "ArmAway"
             command "ArmHome"
@@ -55,9 +55,9 @@ metadata {
             command "ChimeToggle"
             command "ToggleTimeStamp"
             command "poll"
-            command "setUserCode", ["String", "Number", "Number"]
-            command "deleteUserCode", ["Number"]
-            command "configureZone", ["Number", "Number"]
+            command "setUserCode", [[name: "name*", type: "STRING"], [name: "position*", type: "NUMBER"], [name: "code*", type: "NUMBER"]]
+            command "deleteUserCode", [[name: "position*", type: "NUMBER"]]
+            command "configureZone", [[name: "position*", type: "NUMBER"], [name: "definition*", type: "NUMBER"]]
             //command "testParse", ["String"]
 
             attribute "Status", "string"
