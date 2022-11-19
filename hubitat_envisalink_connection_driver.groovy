@@ -241,7 +241,7 @@ def setDelays(entry, entry2, exit){
     composeSetDelays(entry, entry2, exit)
 }
 
-def TogleTimeStamp(){
+def ToggleTimeStamp(){
     ifDebug("Toggle Time Stamp")
     composeTimeStampToggle()
 }
