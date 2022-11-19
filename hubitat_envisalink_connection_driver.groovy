@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.5" }
+def version() { return "Envisalink 0.8.6" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -751,7 +751,7 @@ def parse(String message) {
             ifDebug("         Zone State Change: Zone String [" + ZoneState + "]")
             for (i = 1; i <65; i++) {
                 if ( ZoneState & (2**(i-1)) ) {
-                    ifDebug ("     Zone State Change: Zone " + i + " Tripped!")
+                    ifDebug("     Zone State Change: Zone " + i + " Tripped!")
                     //log.info "OLD Zone State Change: Zone " + i + " Open"
                     zoneOpen("000" + i.toString())
                 } else {
@@ -2108,6 +2108,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.6
+*   Give command parameters names (that show up in the UI)
+*
 * Version: 0.8.5
 *   Whitespace changes only - remove all TABs
 *

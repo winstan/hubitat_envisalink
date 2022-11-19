@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink 0.5.5" }
+def version() { return "Envisalink 0.5.6" }
 
 definition(
     name: "Envisalink Integration",
@@ -912,8 +912,11 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.6
+*   Make lockUseHandler log an info message on entry rather than warning.
+*
 * Version: 0.5.5
-* Whitespace changes only - remove all TABs
+*   Whitespace changes only - remove all TABs
 *
 * Version: 0.5.3
 *   Fixed spurious HSM Event in hsmHandler()
