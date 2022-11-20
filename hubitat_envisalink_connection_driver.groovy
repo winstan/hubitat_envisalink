@@ -572,11 +572,16 @@ def parse(String message) {
                         break
                 }
                 break
+            case COMMANDERROR:
+                logError(message)
+                break
             case SYSTEMERROR:
                 systemError(message)
                 break
             case KEYPADLEDSTATE:
                 keypadLedState(message.substring(3,message.size()))
+                break
+            case LEDFLASHSTATE:
                 break
             case CODEREQUIRED:
                 composeMasterCode()
