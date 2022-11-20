@@ -64,6 +64,7 @@ metadata {
             attribute "Codes", "json"
             attribute "LastUsedCodePosition", "string"
             attribute "LastUsedCodeName", "string"
+            attribute "Trouble LED", "string"
 
             attribute "CID_Code", "string"
             attribute "CID_Type", "string"
@@ -622,6 +623,12 @@ def parse(String message) {
             case KEYPADLOCKOUT:
                 keypadLockout()
                 break
+            case CHIMEENABLED:
+                send_Event(name:"Chime", value: CHIMEENABLED)
+                break
+            case CHIMEDISABLED:
+                send_Event(name:"Chime", value: CHIMEDISABLED)
+                break
             case LOGININTERACTION:
                 int tpicmdlong = message.take(4) as int
                 switch (tpiResponses[tpicmdlong]) {
@@ -667,6 +674,12 @@ def parse(String message) {
             case SPECIALCLOSING:
                 break
             case SPECIALOPENING:
+                break
+            case TROUBLELEDON:
+                if (device.currentValue("Trouble LED") != 'on') {send_Event(name:"Trouble LED", value: 'on')}
+                break
+            case TROUBLELEDOFF:
+                if (device.currentValue("Trouble LED") != 'off') {send_Event(name:"Trouble LED", value: 'off')}
                 break
             default:
                 ifDebug("Unhandled tpicmd (" + tpicmd + "): " + tpiResponses[tpicmd])
