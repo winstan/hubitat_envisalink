@@ -545,10 +545,7 @@ private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
 */
 
 def parse(String message) {
-    ifDebug("Parsing Incoming message: [" + message + "]\n\n")
-
-    //ifDebug("Response: ${tpiResponses[message.take(3) as int]}")
-    ifDebug("Panel Type: " + PanelType)
+    ifDebug("Parsing for panel type " + PanelType + ": [" + message + "]")
 
     if (PanelType as int == 0) {
 
