@@ -1506,7 +1506,7 @@ private send_Event(evnt) {
     22: "API Command Not Supported",
     23: "API System Not Armed (sent in response to a disarm command)",
     24: "API System Not Ready to Arm (system is either not-secure, in exit-delay, or already armed",
-    25: "API Command Invalid Length 26 API User Code not Required",
+    25: "API Command Invalid Length",
     26: "API User Code not Required",
     27: "API Invalid Characters in Command (no alpha characters are allowed except for checksum"
 ]
