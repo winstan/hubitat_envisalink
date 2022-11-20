@@ -550,127 +550,122 @@ def parse(String message) {
     if (PanelType as int == 0) {
 
         message = preProcessMessage(message)
-        if (tpiResponses[message.take(3) as int] == COMMANDACCEPTED) {
-            if (state.programmingMode == SETUSERCODESEND) {
-                setUserCodeSend()
-            }
 
-            if (state.programmingMode == SETUSERCODECOMPLETE) {
-                setUserCodeComplete()
-            }
-
-            if (state.programmingMode == DELETEUSERCODE) {
-                deleteUserCodeSend()
-            }
-
-            if (state.programmingMode == DELETEUSERCOMPLETE) {
-                deleteUserCodeComplete()
-            }
-        }
-
-        if (tpiResponses[message.take(3) as int] == SYSTEMERROR) {
-            systemError(message)
-        }
-
-        if (tpiResponses[message.take(3) as int] == KEYPADLEDSTATE) {
-            keypadLedState(message.substring(3,message.size()))
-        }
-
-        if (tpiResponses[message.take(3) as int] == CODEREQUIRED) {
-            composeMasterCode()
-        }
-
-        if (tpiResponses[message.take(3) as int] == MASTERCODEREQUIRED) {
-            composeMasterCode()
-        }
-
-        if (tpiResponses[message.take(3) as int] == INSTALLERSCODEREQUIRED) {
-            composeInstallerCode()
-        }
-
-        if (tpiResponses[message.take(3) as int] == ZONEOPEN) {
-            zoneOpen(message)
-        }
-
-        if (tpiResponses[message.take(3) as int] == ZONERESTORED) {
-            zoneClosed(message)
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONREADY) {
-            partitionReady()
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONNOTREADY) {
-            partitionNotReady()
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONNOTREADYFORCEARMINGENABLED) {
-            partitionReadyForForcedArmEnabled()
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONINALARM) {
-            partitionAlarm()
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONDISARMED) {
-            partitionDisarmed()
-        }
-
-        if (tpiResponses[message.take(3) as int] == EXITDELAY) {
-            exitDelay()
-        }
-
-        if (tpiResponses[message.take(3) as int] == ENTRYDELAY) {
-            entryDelay()
-        }
-
-        if (tpiResponses[message.take(3) as int] == KEYPADLOCKOUT) {
-            keypadLockout()
-        }
-
-        if (tpiResponses[message.take(3) as int] == LOGININTERACTION) {
-            if (tpiResponses[message.take(4) as int] == LOGINPROMPT) {
-                loginPrompt()
-            }
-
-            if (tpiResponses[message.take(4) as int] == PASSWORDINCORRECT) {
-                logError(PASSWORDINCORRECT)
-            }
-
-            if (tpiResponses[message.take(4) as int] == LOGINSUCCESSFUL) {
-                ifDebug(LOGINSUCCESSFUL)
-            }
-
-            if (tpiResponses[message.take(3) as int] == LOGINTIMEOUT) {
-                logError(LOGINTIMEOUT)
-            }
-        }
-
-        if (tpiResponses[message.take(3) as int] == PARTITIONARMEDSTATE) {
-
-            if (tpiResponses[message.take(5) as int] == PARTITIONARMEDAWAY) {
-                partitionArmedAway()
-            }
-
-            if (tpiResponses[message.take(5) as int] == PARTITIONARMEDHOME) {
-                partitionArmedHome()
-            }
-        }
-
-        if (tpiResponses[message.take(3) as int] == USEROPENING) {
-            partitionArmedNight()
-            parseUser(message)
-        }
-
-        if (tpiResponses[message.take(3) as int] == USERCLOSING) {
-            partitionArmedNight()
-            parseUser(message)
-        }
-
-        if (tpiResponses[message.take(3) as int] == SPECIALCLOSING) {
-        }
-
-        if (tpiResponses[message.take(3) as int] == SPECIALOPENING) {
+        int tpicmd = message.take(3) as int
+        switch (tpiResponses[tpicmd]) {
+            case COMMANDACCEPTED:
+                switch (state.programmingMode) {
+                    case SETUSERCODESEND:
+                        setUserCodeSend()
+                        break
+                    case SETUSERCODECOMPLETE:
+                        setUserCodeComplete()
+                        break
+                    case DELETEUSERCODE:
+                        deleteUserCodeSend()
+                        break
+                    case DELETEUSERCOMPLETE:
+                        deleteUserCodeComplete()
+                        break
+                    default:
+                        ifDebug("Unhandled state.programmingMode after COMMANDACCEPTED: " + state.programmingMode)
+                        break
+                }
+                break
+            case SYSTEMERROR:
+                systemError(message)
+                break
+            case KEYPADLEDSTATE:
+                keypadLedState(message.substring(3,message.size()))
+                break
+            case CODEREQUIRED:
+                composeMasterCode()
+                break
+            case MASTERCODEREQUIRED:
+                composeMasterCode()
+                break
+            case INSTALLERSCODEREQUIRED:
+                composeInstallerCode()
+                break
+            case ZONEOPEN:
+                zoneOpen(message)
+                break
+            case ZONERESTORED:
+                zoneClosed(message)
+                break
+            case PARTITIONREADY:
+                partitionReady()
+                break
+            case PARTITIONNOTREADY:
+                partitionNotReady()
+                break
+            case PARTITIONNOTREADYFORCEARMINGENABLED:
+                partitionReadyForForcedArmEnabled()
+                break
+            case PARTITIONINALARM:
+                partitionAlarm()
+                break
+            case PARTITIONDISARMED:
+                partitionDisarmed()
+                break
+            case EXITDELAY:
+                exitDelay()
+                break
+            case ENTRYDELAY:
+                entryDelay()
+                break
+            case KEYPADLOCKOUT:
+                keypadLockout()
+                break
+            case LOGININTERACTION:
+                int tpicmdlong = message.take(4) as int
+                switch (tpiResponses[tpicmdlong]) {
+                    case LOGINPROMPT:
+                        loginPrompt()
+                        break
+                    case PASSWORDINCORRECT:
+                        logError(PASSWORDINCORRECT)
+                        break
+                    case LOGINSUCCESSFUL:
+                        ifDebug(LOGINSUCCESSFUL)
+                        break
+                    case LOGINTIMEOUT:
+                        logError(LOGINTIMEOUT)
+                        break
+                    default:
+                        ifDebug("Unhandled tpicmdlong (" + tpicmdlong + "): " + tpiResponses[tpicmdlong])
+                        break
+                }
+                break
+            case PARTITIONARMEDSTATE:
+                int tpicmdlong = message.take(5) as int
+                switch (tpiResponses[tpicmdlong]) {
+                    case PARTITIONARMEDAWAY:
+                        partitionArmedAway()
+                        break
+                    case PARTITIONARMEDHOME:
+                        partitionArmedHome()
+                        break
+                    default:
+                        ifDebug("Unhandled tpicmdlong (" + tpicmdlong + "): " + tpiResponses[tpicmdlong])
+                        break
+                }
+                break
+            case USEROPENING:
+                partitionArmedNight()
+                parseUser(message)
+                break
+            case USERCLOSING:
+                partitionArmedNight()
+                parseUser(message)
+                break
+            case SPECIALCLOSING:
+                break
+            case SPECIALOPENING:
+                break
+            default:
+                ifDebug("Unhandled tpicmd (" + tpicmd + "): " + tpiResponses[tpicmd])
+                break
         }
 
     } else {
