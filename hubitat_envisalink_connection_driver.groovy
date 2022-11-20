@@ -672,6 +672,10 @@ def parse(String message) {
                 parseUser(message)
                 break
             case SPECIALCLOSING:
+                send_Event(name:"Status", value: SPECIALCLOSING, isStateChange: true)
+                break
+            case PARTIALCLOSING:
+                send_Event(name:"Status", value: PARTIALCLOSING, isStateChange: true)
                 break
             case SPECIALOPENING:
                 break
@@ -681,8 +685,13 @@ def parse(String message) {
             case TROUBLELEDOFF:
                 if (device.currentValue("Trouble LED") != 'off') {send_Event(name:"Trouble LED", value: 'off')}
                 break
+            case INVALIDACCESSCODE:
+                send_Event(name:"Status", value: INVALIDACCESSCODE)
+                break
+            case PARTITIONISBUSY:
+                break
             default:
-                ifDebug("Unhandled tpicmd (" + tpicmd + "): " + tpiResponses[tpicmd])
+                log.warn("Unhandled tpicmd (" + tpicmd + "): " + tpiResponses[tpicmd])
                 break
         }
 
