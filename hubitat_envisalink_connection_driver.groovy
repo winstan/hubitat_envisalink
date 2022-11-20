@@ -899,13 +899,7 @@ private sendTelnetLogin(){
     ifDebug("sendTelnetLogin: ${passwd}")
     def cmdToSend =  "${passwd}"
     if (PanelType as int == 0) {
-        cmdToSend =  tpiCommands["Login"] + "${passwd}"
-        def cmdArray = cmdToSend.toCharArray()
-        def cmdSum = 0
-        cmdArray.each { cmdSum += (int)it }
-        def chkSumStr = DataType.pack(cmdSum, 0x08)
-        if (chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
-        cmdToSend += chkSumStr
+        cmdToSend =  generateChksum(tpiCommands["Login"] + "${passwd}")
     }
     cmdToSend = cmdToSend + "\r\n"
     sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
@@ -1010,15 +1004,13 @@ private exitDelay(){
 }
 
 private generateChksum(String cmdToSend){
-    ifDebug("generateChksum")
-    def cmdArray = cmdToSend.toCharArray()
-    ifDebug("cmdArray: ${cmdArray}")
-    def cmdSum = 0
-    cmdArray.each { cmdSum += (int)it }
-    def chkSumStr = DataType.pack(cmdSum, 0x08)
-    if (chkSumStr.length() > 2) chkSumStr = chkSumStr[-2..-1]
+    ifDebug("generateChksum(${cmdToSend})")
+    int cmdSum = 0
+    cmdToSend.each { cmdSum += (int)it }
+    cmdSum &= 0xff
+    def chkSumStr = String.format("%02X", cmdSum)
     cmdToSend += chkSumStr
-    cmdToSend
+    return cmdToSend
 }
 
 private getReTry(Boolean inc){
