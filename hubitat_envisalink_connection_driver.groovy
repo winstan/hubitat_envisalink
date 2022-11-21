@@ -920,6 +920,7 @@ private sendProgrammingMessage(String s){
 }
 
 def telnetConnection(){
+    send_Event(name: "networkStatus", value: "offline", isStateChange: true)
     telnetClose()
     pauseExecution(5000)
     try {
@@ -1029,7 +1030,7 @@ private ifDebug(msg){
 
 private loginPrompt(){
     ifDebug("loginPrompt")
-    send_Event(name: "DeviceWatch-DeviceStatus", value: "online")
+    send_Event(name: "networkStatus", value: "online")
     ifDebug("Connection to Envisalink established")
     state.reTryCount = 0
     sendTelnetLogin()
