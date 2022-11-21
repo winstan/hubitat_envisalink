@@ -1372,7 +1372,6 @@ private zoneOpen(message, Boolean autoReset = false){
             if (zoneDevice.latestValue("motion") != "active") {
                 ifDebug("Motion $zone Active")
                 zoneDevice.active()
-                zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
@@ -1412,7 +1411,6 @@ private zoneClosed(message){
             if (zoneDevice.latestValue("motion") != "inactive") {
                 ifDebug("Motion Inactive")
                 zoneDevice.inactive()
-                zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
