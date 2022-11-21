@@ -1352,35 +1352,22 @@ private clearAllZones() {
 }
 
 private getZoneDevice(zoneId) {
-    def zoneDevice = null
-    zoneDevice = getChildDevice("${device.deviceNetworkId}_${zoneId}")
-    if (zoneDevice == null) {
-        zoneDevice = getChildDevice("${device.deviceNetworkId}_M_${zoneId}")
-        if (zoneDevice == null) {
-            zoneDevice = getChildDevice("${device.deviceNetworkId}_C_${zoneId}")
-            if (zoneDevice == null) {
-                zoneDevice = getChildDevice("${device.deviceNetworkId}_S_${zoneId}")
-                if (zoneDevice == null) {
-                    zoneDevice = getChildDevice("${device.deviceNetworkId}_G_${zoneId}")
-                }
-            }
-        }
-    }
+    // The last 3 characters of the deviceNetworkId should be the zoneId
+    def zoneDevice = getChildDevices().find{ it.deviceNetworkId[-3..-1] == zoneId }
     return zoneDevice
 }
 
 private zoneOpen(message, Boolean autoReset = false){
-    def zoneDevice
-    def substringCount = message.size() - 3
     def myStatus
-    zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
+    def zone = message[3..5]
+    def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
         if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
             //myStatus = zoneDevice.latestValue("contact")
             //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
             if (zoneDevice.latestValue("contact") != "open") {
-                ifDebug("Contact ${message.substring(substringCount).take(3)} Open")
+                ifDebug("Contact $zone Open")
                 zoneDevice.open()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
             }
@@ -1388,7 +1375,7 @@ private zoneOpen(message, Boolean autoReset = false){
             //myStatus = zoneDevice.latestValue("motion")
             //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
             if (zoneDevice.latestValue("motion") != "active") {
-                ifDebug("Motion ${message.substring(substringCount).take(3)} Active")
+                ifDebug("Motion $zone Active")
                 zoneDevice.active()
                 zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
@@ -1397,7 +1384,7 @@ private zoneOpen(message, Boolean autoReset = false){
             //myStatus = zoneDevice.latestValue("carbonMonoxide")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
-                ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("CO Detector $zone Active")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
@@ -1405,7 +1392,7 @@ private zoneOpen(message, Boolean autoReset = false){
             //myStatus = zoneDevice.latestValue("smoke")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("smoke") == "clear") {
-                ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("Smoke Detector $zone Active")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
@@ -1413,7 +1400,7 @@ private zoneOpen(message, Boolean autoReset = false){
             //myStatus = zoneDevice.latestValue("shock")
             //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("shock") == "clear") {
-                ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("GlassBreak Detector $zone Active")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
@@ -1422,10 +1409,9 @@ private zoneOpen(message, Boolean autoReset = false){
 }
 
 private zoneClosed(message){
-    def zoneDevice
-    def substringCount = message.size() - 3
     def myStatus
-    zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
+    def zone = message[3..5]
+    def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
         if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
@@ -1449,7 +1435,7 @@ private zoneClosed(message){
             //myStatus = zoneDevice.latestValue("carbonMonoxide")
             //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
-                ifDebug("CO Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("CO Detector $zone Active")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
@@ -1457,7 +1443,7 @@ private zoneClosed(message){
             //myStatus = zoneDevice.latestValue("smoke")
             //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("smoke") != "clear") {
-                ifDebug("Smoke Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("Smoke Detector $zone Active")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
@@ -1465,7 +1451,7 @@ private zoneClosed(message){
             //myStatus = zoneDevice.latestValue("shock")
             //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
             if (zoneDevice.latestValue("shock") != "clear") {
-                ifDebug("GlassBreak Detector ${message.substring(substringCount).take(3)} Active")
+                ifDebug("GlassBreak Detector $zone Active")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
@@ -1474,15 +1460,13 @@ private zoneClosed(message){
 }
 
 private zoneTamper(message){
-    def zoneDevice
-    def substringCount = message.size() - 3
-    def msg = message.substring(substringCount).take(3)
-    zoneDevice = getZoneDevice("${message.substring(substringCount).take(3)}")
+    def zone = message[3..5]
+    def zoneDevice = getZoneDevice(zone)
     ifDebug(zoneDevice)
     if (zoneDevice) {
         if (device.currentValue("tamper") != "detected") {
             send_Event(name:"tamper", value: "detected", displayed:true, isStateChange: true)
-            send_Event(name:"tamperZone", value: msg, displayed:true, isStateChange: true)
+            send_Event(name:"tamperZone", value: zone, displayed:true, isStateChange: true)
         }
     }
 }
