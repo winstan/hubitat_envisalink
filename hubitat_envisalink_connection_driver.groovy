@@ -952,13 +952,17 @@ private isBitSet(byte b, int bit) {
 
 private checkTimeStamp(message){
     if (message =~ timeStampPattern) {
-        //ifDebug("Time Stamp Found")
-        state.timeStampOn = true;
+        if (!state.timeStampOn) {
+            ifDebug("Time Stamp Found")
+            state.timeStampOn = true;
+        }
         message = message.replaceAll(timeStampPattern, "")
-        ifDebug("Time Stamp Remove ${message}")
+        //ifDebug("Time Stamp Remove ${message}")
     } else {
-        state.timeStampOn = false;
-        //ifDebug("Time Stamp Not Found")
+        if (state.timeStampOn) {
+            state.timeStampOn = false;
+            ifDebug("Time Stamp Not Found")
+        }
     }
     return message
 }
