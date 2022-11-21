@@ -259,8 +259,7 @@ def createZone(zoneInfo){
     ifDebug( "Creating ${zoneInfo.zoneName} with label '${zoneInfo.zoneLabel}' with deviceNetworkId = ${zoneInfo.deviceNetworkId} of type: ${zoneInfo.zoneType} for panel type: " + PanelType)
     def newDevice
     if (zoneInfo.zoneType == "0") {
-        addChildDevice("hubitat", "Virtual Contact Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
-        newDevice = getChildDevice(zoneInfo.deviceNetworkId)
+        newDevice = addChildDevice("hubitat", "Virtual Contact Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
         if (PanelType as int == 1) {
             // Vista does not report contact sensors inactive... make it automatic
             // virtual contact sensor does not support autoInactive
@@ -269,8 +268,7 @@ def createZone(zoneInfo){
         }
 
     } else if (zoneInfo.zoneType == "1") {
-        addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
-        newDevice = getChildDevice(zoneInfo.deviceNetworkId)
+        newDevice = addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
         if (PanelType as int == 0) {
             newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
         } else {
