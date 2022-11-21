@@ -1358,47 +1358,36 @@ private getZoneDevice(zoneId) {
 }
 
 private zoneOpen(message, Boolean autoReset = false){
-    def myStatus
     def zone = message[3..5]
     def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
-        if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
-            //myStatus = zoneDevice.latestValue("contact")
-            //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+        if (zoneDevice.hasAttribute("contact")) {
             if (zoneDevice.latestValue("contact") != "open") {
                 ifDebug("Contact $zone Open")
                 zoneDevice.open()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
-            //myStatus = zoneDevice.latestValue("motion")
-            //log.info "ZO Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "active") {
                 ifDebug("Motion $zone Active")
                 zoneDevice.active()
                 zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
-            //myStatus = zoneDevice.latestValue("carbonMonoxide")
-            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
                 ifDebug("CO Detector $zone Active")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
-            //myStatus = zoneDevice.latestValue("smoke")
-            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") == "clear") {
                 ifDebug("Smoke Detector $zone Active")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
-            //myStatus = zoneDevice.latestValue("shock")
-            //log.info "ZO Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") == "clear") {
                 ifDebug("GlassBreak Detector $zone Active")
                 zoneDevice.detected()
@@ -1409,47 +1398,36 @@ private zoneOpen(message, Boolean autoReset = false){
 }
 
 private zoneClosed(message){
-    def myStatus
     def zone = message[3..5]
     def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
-        if (zoneDevice.capabilities.find { item -> item.name.startsWith('Contact')}) {
-            //myStatus = zoneDevice.latestValue("contact")
-            //log.info "ZC Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+        if (zoneDevice.hasAttribute("contact")) {
             if (zoneDevice.latestValue("contact") != "closed") {
                 ifDebug("Contact Closed")
                 zoneDevice.close()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Motion')}) {
-            //myStatus = zoneDevice.latestValue("motion")
-            //log.info "ZC Status: Zone: ${zoneDevice.name} status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "inactive") {
                 ifDebug("Motion Inactive")
                 zoneDevice.inactive()
                 zoneDevice.sendEvent(name: "temperature", value: "", isStateChange: true)
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('CarbonMonoxide')}) {
-            //myStatus = zoneDevice.latestValue("carbonMonoxide")
-            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
                 ifDebug("CO Detector $zone Active")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Smoke')}) {
-            //myStatus = zoneDevice.latestValue("smoke")
-            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") != "clear") {
                 ifDebug("Smoke Detector $zone Active")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
-        } else if (zoneDevice.capabilities.find { item -> item.name.startsWith('Shock')}) {
-            //myStatus = zoneDevice.latestValue("shock")
-            //log.info "ZC Status: Zone: ${zoneDevice.name} Status WAS ${myStatus}"
+        } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") != "clear") {
                 ifDebug("GlassBreak Detector $zone Active")
                 zoneDevice.clear()
