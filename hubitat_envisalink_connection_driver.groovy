@@ -664,7 +664,6 @@ def parse(String message) {
                 }
                 break
             case USEROPENING:
-                partitionArmedNight()
                 parseUser(message)
                 break
             case USERCLOSING:
