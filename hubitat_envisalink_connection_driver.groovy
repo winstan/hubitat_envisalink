@@ -1292,12 +1292,18 @@ private systemArmedNight(){
 }
 
 private systemError(message){
-    def substringCount = message.size() - 3
-    message = message.substring(4,message.size()).replaceAll('0', '') as int
-    //message = message.substring(substringCount).take(3).replaceAll('0', '')
-    logError("System Error: ${message} - ${errorCodes[(message)]}")
+    def errorcode = 99
+    def errormsg = message
+    try {
+        //errorcode = message[3..5] as int
+        errorcode = message[4..-1].replaceAll('0', '') as int
+        errormsg = errorCodes[errorcode]
+    } catch(e) {
+        logError("System Error error: ${e.message}")
+    }
+    logError("System Error: ${errorcode} - ${errormsg}")
 
-    if (errorCodes[(message)] == "Receive Buffer Overrun") {
+    if (errormsg == "Receive Buffer Overrun") {
         composeKeyStrokes("#")
     }
 }
