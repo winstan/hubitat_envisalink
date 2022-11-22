@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.7" }
+def version() { return "Envisalink 0.9.0" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -58,6 +58,7 @@ metadata {
             command "setUserCode", [[name: "name*", type: "STRING"], [name: "position*", type: "NUMBER"], [name: "code*", type: "NUMBER"]]
             command "deleteUserCode", [[name: "position*", type: "NUMBER"]]
             //command "configureZone", [[name: "position*", type: "NUMBER"], [name: "definition*", type: "NUMBER"]]
+            command "BypassZone", [[name: "zone*", type: "NUMBER"]]
             //command "testParse", ["String"]
 
             attribute "Status", "string"
@@ -65,6 +66,7 @@ metadata {
             attribute "LastUsedCodePosition", "string"
             attribute "LastUsedCodeName", "string"
             attribute "Trouble LED", "string"
+            attribute "Bypassed Zones", "string"
 
             attribute "CID_Code", "string"
             attribute "CID_Type", "string"
@@ -183,6 +185,11 @@ def both(){
 def configureZone(zonePosition, zoneDefinition){
     ifDebug("configureZone ${zonePosition} ${zoneDefinition}")
     composeZoneConfiguration(zonePosition, zoneDefinition)
+}
+
+def BypassZone(zone){
+    ifDebug("BypassZone ${zone}")
+    composeBypassZone(zone as int)
 }
 
 def ChimeToggle(){
@@ -334,6 +341,13 @@ private composeArmNight(){
     }
 }
 */
+
+private composeBypassZone(int zone){
+    String message = String.format("%s%02d#", tpiCommands["BypassZone"], zone)
+    ifDebug("composeBypassZone ${message}")
+    sendTelnetCommand(message)
+}
+
 private composeChimeToggle(){
     ifDebug("composeChimeToggle")
     def message = tpiCommands["ToggleChime"]
@@ -596,6 +610,9 @@ def parse(String message) {
                 break
             case ZONERESTORED:
                 zoneClosed(message)
+                break
+            case BYPASSEDZONEBITFIELDDUMP:
+                zonesBypassed(message.substring(4))
                 break
             case PARTITIONREADY:
                 partitionReady()
@@ -1085,7 +1102,8 @@ private partitionReady(){
     state.newCodePosition = ""
     state.newName = ""
     state.programmingMode = ""
-    clearAllZones()
+    // damunn says that clearAllZones() messes up bypassed zones when arming.
+    //clearAllZones()
     if (device.currentValue("tamper") != "clear") {
         send_Event(name:"tamper", value: "clear", displayed:true, isStateChange: true)
         send_Event(name:"tamperZone", value: "", displayed:true, isStateChange: true)
@@ -1128,6 +1146,7 @@ private partitionDisarmed(){
             send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) 
             //log.info "partitionDisarmed() send Event Status = Disarmed"
     }
+    if (device.currentValue("Bypassed Zones") != "none") { send_Event(name:"Bypassed Zones", value: "none", isStateChange: true) }
     if (device.currentValue("switch") != "off") { send_Event(name:"switch", value: "off", isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
     //log.info "partitionDisarmed() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
@@ -1443,6 +1462,23 @@ private zoneClosed(message){
     }
 }
 
+private zonesBypassed(String zones) {
+    int j = 0
+    String s = ""
+    zones.each {
+        int c = hexdig[it]
+        int i = j
+        while (c != 0) {
+            ++i
+            if (c & 1) s += String.format("%02d ", i)
+            c >>= 1
+        }
+        j += 4
+    }
+    if (s.length() == 0) s = "none"
+    send_Event(name:"Bypassed Zones", value : s)
+}
+
 private zoneTamper(message){
     def zone = message[3..5]
     def zoneDevice = getZoneDevice(zone)
@@ -1465,6 +1501,25 @@ private send_Event(evnt) {
 */
 
 @Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
+
+@Field final Map hexdig = [
+    '0'    :    0,
+    '1'    :    1,
+    '2'    :    2,
+    '3'    :    3,
+    '4'    :    4,
+    '5'    :    5,
+    '6'    :    6,
+    '7'    :    7,
+    '8'    :    8,
+    '9'    :    9,
+    'A'    :    10,
+    'B'    :    11,
+    'C'    :    12,
+    'D'    :    13,
+    'E'    :    14,
+    'F'    :    15
+]
 
 @Field final Map errorCodes = [
     0: "No Error",
@@ -1707,6 +1762,7 @@ private send_Event(evnt) {
     StatusReport: "001",
     Disarm: "0401",
     ToggleChime: "0711*4",
+    BypassZone: "0711*1",
     ArmHome: "0311",
     ArmAway: "0301",
     //ArmNight: "0711*9",
@@ -2087,6 +2143,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.9.0
+*   Add zone bypass functionality - courtesy Dale Munn (damunn)
+*
 * Version: 0.8.7
 *   Performance improvements, bug fixes
 *
