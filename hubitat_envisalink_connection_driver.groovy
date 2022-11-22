@@ -29,12 +29,12 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.8.6" }
+def version() { return "Envisalink 0.8.7" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
         author: "Doug Beard", 
-        importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy") {
+        importUrl: "https://raw.githubusercontent.com/winstan/hubitat_envisalink/master/hubitat_envisalink_connection_driver.groovy") {
             capability "Initialize"
             capability "Telnet"
             capability "Alarm"
@@ -2087,6 +2087,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.8.7
+*   Performance improvements, bug fixes
+*
 * Version: 0.8.6
 *   Give command parameters names (that show up in the UI)
 *

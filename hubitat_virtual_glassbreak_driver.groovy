@@ -19,7 +19,7 @@ metadata {
     definition (name: "Virtual GlassBreak Detector", 
         namespace: "dwb",
         author: "CybrMage", 
-        importUrl: "https://raw.githubusercontent.com/bdwilson/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy") {
+        importUrl: "https://raw.githubusercontent.com/winstan/hubitat_envisalink/master/hubitat_virtual_glassbreak_driver.groovy") {
             capability "Initialize"
             capability "ShockSensor"
             
