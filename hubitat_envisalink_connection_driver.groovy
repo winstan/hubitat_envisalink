@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.9.0" }
+def version() { return "Envisalink 0.9.1" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -566,7 +566,7 @@ def parse(String message) {
 
         int tpicmd = message.take(3) as int
         switch (tpiResponses[tpicmd]) {
-            case COMMANDACCEPTED:
+            case COMMANDACKNOWLEDGE:
                 switch (state.programmingMode) {
                     case SETUSERCODESEND:
                         setUserCodeSend()
@@ -581,7 +581,7 @@ def parse(String message) {
                         deleteUserCodeComplete()
                         break
                     default:
-                        ifDebug("Unhandled state.programmingMode after COMMANDACCEPTED: " + state.programmingMode)
+                        ifDebug("Unhandled state.programmingMode after COMMANDACKNOWLEDGE: " + state.programmingMode)
                         break
                 }
                 break
@@ -592,9 +592,9 @@ def parse(String message) {
                 systemError(message)
                 break
             case KEYPADLEDSTATE:
-                keypadLedState(message.substring(3,message.size()))
+                keypadLedState(message[3..4])
                 break
-            case LEDFLASHSTATE:
+            case KEYPADLEDFLASHSTATE:
                 break
             case CODEREQUIRED:
                 composeMasterCode()
@@ -660,7 +660,7 @@ def parse(String message) {
                         logError(LOGINTIMEOUT)
                         break
                     default:
-                        ifDebug("Unhandled tpicmdlong (" + tpicmdlong + "): " + tpiResponses[tpicmdlong])
+                        logError("Unhandled Login Interaction: " + message)
                         break
                 }
                 break
@@ -1058,8 +1058,20 @@ private keypadLockout(){
 }
 
 private keypadLedState(ledState){
-    ifDebug("keypadLedState ${ledState}")
-     if (ledState == "82" && state.programmingMode == SETUSERCODEINITIALIZE) {
+    def ledBinary = Integer.toBinaryString(Integer.decode("0x" + ledState)).padLeft(8, "0")
+    backlight = ledBinary[0] == '1' ? true : false
+    fire      = ledBinary[1] == '1' ? true : false
+    program   = ledBinary[2] == '1' ? true : false
+    trouble   = ledBinary[3] == '1' ? true : false
+    bypass    = ledBinary[4] == '1' ? true : false
+    memory    = ledBinary[5] == '1' ? true : false
+    armed     = ledBinary[6] == '1' ? true : false
+    ready     = ledBinary[7] == '1' ? true : false
+    ifDebug("keypadLedState 0x${ledState} ${ledBinary}")
+    ifDebug("Partition Ready LED " + ready ? "On" : "Off")
+
+    // 82 = backlight and armed
+    if (ledState == "82" && state.programmingMode == SETUSERCODEINITIALIZE) {
         ifDebug("${KEYPADLEDSTATE} ${state.programmingMode}")
         state.programmingMode = SETUSERCODESEND
         composeKeyStrokes(state.newCodePosition + state.newCode)
@@ -1069,18 +1081,6 @@ private keypadLedState(ledState){
         ifDebug("${KEYPADLEDSTATE} ${state.programmingMode}")
         state.programmingMode = DELETEUSERCODE
         composeKeyStrokes(state.newCodePosition + "*")
-    }
-
-    def ledBinary = Integer.toBinaryString(hubitat.helper.HexUtils.hexStringToInt(ledState))
-    def paddedBinary = ledBinary.padLeft(8, "0")
-    ifDebug("${paddedBinary}")
-
-    if (paddedBinary.substring(7,8) == "0") {
-        ifDebug("Partition Ready LED Off")
-    }
-
-    if (paddedBinary.substring(7,8) == "1") {
-        ifDebug("Partition Ready LED On")
     }
 }
 
@@ -1313,15 +1313,9 @@ private systemArmedNight(){
 }
 
 private systemError(message){
-    def errorcode = 99
-    def errormsg = message
-    try {
-        //errorcode = message[3..5] as int
-        errorcode = message[4..-1].replaceAll('0', '') as int
-        errormsg = errorCodes[errorcode]
-    } catch(e) {
-        logError("System Error error: ${e.message}")
-    }
+    // Error code is the next 3 bytes: 000-255
+    def errorcode = message[3..5] as int
+    def errormsg = errorCodes[errorcode]
     logError("System Error: ${errorcode} - ${errormsg}")
 
     if (errormsg == "Receive Buffer Overrun") {
@@ -1523,36 +1517,34 @@ private send_Event(evnt) {
 
 @Field final Map errorCodes = [
     0: "No Error",
-    1: "Receive Buffer Overrun",
+    1: "Receive Buffer Overrun", // (a command is received while another is still being processed)
     2: "Receive Buffer Overflow",
     3: "Transmit Buffer Overflow",
     10: "Keybus Transmit Buffer Overrun",
     11: "Keybus Transmit Time Timeout",
     12: "Keybus Transmit Mode Timeout",
     13: "Keybus Transmit Keystring Timeout",
-    14: "Keybus Interface Not Functioning (the TPI cannot communicate with the security system)",
-    15: "Keybus Busy (Attempting to Disarm or Arm with user code)",
-    16: "Keybus Busy - Lockout (The panel is currently in Keypad Lockout - too many disarm attempts)",
-    17: "Keybus Busy - Installers Mode (Panel is in installers mode, most functions are unavailable)",
-    18: "Keybus Busy - General Busy (The requested partition is busy)",
+    14: "Keybus Interface Not Functioning", // (the TPI cannot communicate with the security system)
+    15: "Keybus Busy", // (Attempting to Disarm or Arm with user code)
+    16: "Keybus Busy - Lockout", // (The panel is currently in Keypad Lockout - too many disarm attempts)
+    17: "Keybus Busy - Installers Mode", // (Panel is in installers mode, most functions are unavailable)
+    18: "Keybus Busy - General Busy", // (The requested partition is busy)
     20: "API Command Syntax Error",
-    21: "API Command Partition Error (Requested Partition is out of bounds)",
+    21: "API Command Partition Error", // (Requested Partition is out of bounds)
     22: "API Command Not Supported",
-    23: "API System Not Armed (sent in response to a disarm command)",
-    24: "API System Not Ready to Arm (system is either not-secure, in exit-delay, or already armed",
+    23: "API System Not Armed", // (sent in response to a disarm command)
+    24: "API System Not Ready to Arm", // (system is either not-secure, in exit-delay, or already armed)
     25: "API Command Invalid Length",
     26: "API User Code not Required",
-    27: "API Invalid Characters in Command (no alpha characters are allowed except for checksum"
+    27: "API Invalid Characters in Command", // (no alpha characters are allowed except for checksum)
 ]
 
-@Field static final String COMMANDACCEPTED = "Command Accepted"
-@Field static final String KEYPADLEDSTATE = "Keypad LED State"
-@Field static final String PROGRAMMINGON = "Keypad LED State ON"
-@Field static final String PROGRAMMINGOFF = "Keypad LED State OFF"
+@Field static final String COMMANDACKNOWLEDGE = "Command Acknowledge"
 @Field static final String COMMANDERROR = "Command Error"
 @Field static final String SYSTEMERROR = "System Error"
 @Field static final String LOGININTERACTION = "Login Interaction"
-@Field static final String LEDFLASHSTATE = "Keypad LED FLASH state"
+@Field static final String KEYPADLEDSTATE = "Keypad LED State"
+@Field static final String KEYPADLEDFLASHSTATE = "Keypad LED FLASH state"
 @Field static final String TIMEDATEBROADCAST = "Time - Date Broadcast"
 @Field static final String RINGDETECTED = "Ring Detected"
 @Field static final String INDOORTEMPBROADCAST = "Indoor Temp Broadcast"
@@ -1639,10 +1631,9 @@ private send_Event(evnt) {
 @Field static final String COMMANDOUTPUTPRESSED = "Command Output Pressed"
 @Field static final String MASTERCODEREQUIRED = "Master Code Required"
 @Field static final String INSTALLERSCODEREQUIRED = "Installers Code Required"
-@Field static final String PASSWORDINCORRECT = "TPI Login password required"
+@Field static final String PASSWORDINCORRECT = "TPI Login password was incorrect"
 @Field static final String LOGINSUCCESSFUL = "Login Successful"
 @Field static final String LOGINTIMEOUT = "Time out.  You did not send password within 10 seconds"
-@Field static final String APIFAULT = "API Command Syntax Error"
 @Field static final String LOGINPROMPT = "Send Login"
 
 @Field static final String SETUSERCODEINITIALIZE = "SETUSERCODEINITIALIZE"
@@ -1654,19 +1645,16 @@ private send_Event(evnt) {
 @Field static final String DELETEUSERCOMPLETE = "DELETEUSERCOMPLETE"
 
 @Field final Map tpiResponses = [
-    500: COMMANDACCEPTED,
+    500: COMMANDACKNOWLEDGE,
     501: COMMANDERROR,
     502: SYSTEMERROR,
-    502020: APIFAULT,
     505: LOGININTERACTION,
     5050: PASSWORDINCORRECT,
     5051: LOGINSUCCESSFUL,
     5052: LOGINTIMEOUT,
     5053: LOGINPROMPT,
-    510: KEYPADLEDSTATE,
-    51091: PROGRAMMINGON,
-    51090: PROGRAMMINGOFF,
-    511: LEDFLASHSTATE,
+    510: KEYPADLEDSTATE, // Partition 1 only
+    511: KEYPADLEDFLASHSTATE, // Partition 1 only, overrides KEYPADLEDSTATE
     550: TIMEDATEBROADCAST,
     560: RINGDETECTED,
     561: INDOORTEMPBROADCAST,
@@ -2143,6 +2131,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.9.1
+*   Going through the TPI Command in the manual: 500 - 511
+*
 * Version: 0.9.0
 *   Add zone bypass functionality - courtesy Dale Munn (damunn)
 *
