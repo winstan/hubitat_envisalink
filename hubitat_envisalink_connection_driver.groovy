@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.9.3" }
+def version() { return "Envisalink 0.9.4" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -189,7 +189,7 @@ def configureZone(zonePosition, zoneDefinition){
 
 def BypassZone(zone){
     ifDebug("** BypassZone(${zone})")
-    composeBypassZone(zone as int)
+    composeBypassZone(zone as Integer)
 }
 
 def ChimeToggle(){
@@ -342,8 +342,8 @@ private composeArmNight(){
 }
 */
 
-private composeBypassZone(int zone){
-    String message = String.format("%s%02d#", tpiCommands["BypassZone"], zone)
+private composeBypassZone(Integer zone){
+    String message = tpiCommands["BypassZone"] + (zone != null ? String.format("%02d", zone) : "") + "#"
     ifDebug("composeBypassZone ${message}")
     sendTelnetCommand(message)
 }
@@ -1436,13 +1436,15 @@ private zoneClosed(zone){
 private zonesBypassed(String zones) {
     // zones is a 16-char HEX string (8 bytes)
     // The lower 8 zones are in the first position of the bitfield.
-    String bits = Long.toBinaryString(Long.decode("0x${zones[0..7]}")).padLeft(32, "0") +
-                  Long.toBinaryString(Long.decode("0x${zones[8..15]}")).padLeft(32, "0")
+    String bits = ""
+    for(int i = 0; i<16; i+=2) {
+        bits = Integer.toBinaryString(Integer.decode("0x${zones[i..i+1]}")).padLeft(8, "0") + bits
+    }
     ifDebug("zonesBypassed(0x${zones}) ${bits}")
 
     String s = ""
-    for(int i = 0; i<64; i++) {
-         if (bits[i] == '1') s += String.format("%02d ", i+1)
+    for(int i = 1; i<=64; i++) {
+         if (bits[64-i] == '1') s += String.format("%02d ", i)
     }
     if (s.length() == 0) s = "none"
 
@@ -2086,6 +2088,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.9.4
+*   Fix zones bypassed - tested
+*
 * Version: 0.9.3
 *   Changed Panel Type enum to be ["DSC", "Vista"] rather than ["0", "1"]. Device preference will need to be set again.
 *
