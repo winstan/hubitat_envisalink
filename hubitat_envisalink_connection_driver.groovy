@@ -563,27 +563,7 @@ def parse(String message) {
         int tpicmd = message.take(3) as int
         switch (tpiResponses[tpicmd]) {
             case COMMANDACKNOWLEDGE:
-                // Previous CMD received.
-                previousCMD = message[3..5]
-                switch (state.programmingMode) {
-                    case SETUSERCODESEND:
-                        setUserCodeSend()
-                        break
-                    case SETUSERCODECOMPLETE:
-                        setUserCodeComplete()
-                        break
-                    case DELETEUSERCODE:
-                        deleteUserCodeSend()
-                        break
-                    case DELETEUSERCOMPLETE:
-                        deleteUserCodeComplete()
-                        break
-                    case "":
-                        break
-                    default:
-                        ifDebug("Unhandled state.programmingMode after COMMANDACKNOWLEDGE: " + state.programmingMode)
-                        break
-                }
+                cmdAck(message[3..5])
                 break
             case COMMANDERROR:
                 logError(message)
@@ -961,6 +941,26 @@ def telnetStatus(String status){
 /***********************************************************************************************************************
 *   Helpers
 */
+private cmdAck(String previousCMD) {
+    ifDebug("cmdAck(${previousCMD})")
+    switch (state.programmingMode) {
+        case SETUSERCODESEND:
+            setUserCodeSend()
+            break
+        case SETUSERCODECOMPLETE:
+            setUserCodeComplete()
+            break
+        case DELETEUSERCODE:
+            deleteUserCodeSend()
+            break
+        case DELETEUSERCOMPLETE:
+            deleteUserCodeComplete()
+            break
+        default:
+            break
+    }
+}
+
 private isBitSet(byte b, int bit) {
    return (b & (1 << bit)) != 0;
 }
