@@ -590,7 +590,7 @@ def parse(String message) {
                 zoneClosed(message[3..5])
                 break
             case BYPASSEDZONEBITFIELDDUMP:
-                zonesBypassed(message.substring(4))
+                zonesBypassed(message[3..18])
                 break
             case PARTITIONREADY:
                 partitionReady(message[3])
