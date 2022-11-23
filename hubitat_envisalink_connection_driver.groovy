@@ -1055,6 +1055,7 @@ private keypadLockout(){
 
 private keypadLedState(ledState){
     def ledBinary = Integer.toBinaryString(Integer.decode("0x" + ledState)).padLeft(8, "0")
+    ifDebug("keypadLedState(0x${ledState}) ${ledBinary}")
     backlight = ledBinary[0] == '1' ? true : false
     fire      = ledBinary[1] == '1' ? true : false
     program   = ledBinary[2] == '1' ? true : false
@@ -1063,8 +1064,6 @@ private keypadLedState(ledState){
     memory    = ledBinary[5] == '1' ? true : false
     armed     = ledBinary[6] == '1' ? true : false
     ready     = ledBinary[7] == '1' ? true : false
-    ifDebug("keypadLedState 0x${ledState} ${ledBinary}")
-    ifDebug("Partition Ready LED " + (ready ? "On" : "Off"))
 
     // 82 = backlight and armed
     if (ledState == "82" && state.programmingMode == SETUSERCODEINITIALIZE) {
