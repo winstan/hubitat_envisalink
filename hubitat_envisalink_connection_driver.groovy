@@ -1064,7 +1064,7 @@ private keypadLedState(ledState){
     armed     = ledBinary[6] == '1' ? true : false
     ready     = ledBinary[7] == '1' ? true : false
     ifDebug("keypadLedState 0x${ledState} ${ledBinary}")
-    ifDebug("Partition Ready LED " + ready ? "On" : "Off")
+    ifDebug("Partition Ready LED " + (ready ? "On" : "Off"))
 
     // 82 = backlight and armed
     if (ledState == "82" && state.programmingMode == SETUSERCODEINITIALIZE) {
@@ -1119,7 +1119,7 @@ private partitionNotReady(){
 }
 
 private partitionReadyForForcedArmEnabled(){
-    ifDebug("partitionReadyForForcedArmEnabled")
+    ifDebug("partitionReadyForForcedArmEnabled()")
     if (device.currentValue("Status") != PARTITIONREADYFORCEARMINGENABLED) { send_Event(name:"Status", value: PARTITIONREADYFORCEARMINGENABLED, isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed") }
 }
@@ -1375,31 +1375,31 @@ private zoneOpen(zone, Boolean autoReset = false){
         ifDebug("zoneOpen($zone) - $zoneDevice")
         if (zoneDevice.hasAttribute("contact")) {
             if (zoneDevice.latestValue("contact") != "open") {
-                ifDebug("Contact $zoneDevice Open")
+                ifDebug("Setting contact $zoneDevice as open")
                 zoneDevice.open()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
             }
         } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "active") {
-                ifDebug("Motion $zoneDevice Active")
+                ifDebug("Setting motion $zoneDevice as active")
                 zoneDevice.active()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
-                ifDebug("CO Detector $zoneDevice Detected")
+                ifDebug("Setting CO detector $zoneDevice as detected")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
         } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") == "clear") {
-                ifDebug("Smoke Detector $zoneDevice Detected")
+                ifDebug("Setting smoke detector $zoneDevice as detected")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
         } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") == "clear") {
-                ifDebug("GlassBreak Detector $zoneDevice Detected")
+                ifDebug("Setting GlassBreak Detector $zoneDevice as detected")
                 zoneDevice.detected()
                 if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
@@ -1413,31 +1413,31 @@ private zoneClosed(zone){
         ifDebug("zoneClosed($zone) - $zoneDevice")
         if (zoneDevice.hasAttribute("contact")) {
             if (zoneDevice.latestValue("contact") != "closed") {
-                ifDebug("Contact $zoneDevice Closed")
+                ifDebug("Setting contact $zoneDevice as closed")
                 zoneDevice.close()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "inactive") {
-                ifDebug("Motion $zoneDevice Inactive")
+                ifDebug("Setting motion $zoneDevice as inactive")
                 zoneDevice.inactive()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
-                ifDebug("CO Detector $zoneDevice Clear")
+                ifDebug("Setting CO detector $zoneDevice as clear")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") != "clear") {
-                ifDebug("Smoke Detector $zoneDevice Clear")
+                ifDebug("Setting smoke detector $zoneDevice as clear")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") != "clear") {
-                ifDebug("GlassBreak Detector $zoneDevice Clear")
+                ifDebug("Setting GlassBreak Detector $zoneDevice as clear")
                 zoneDevice.clear()
                 if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
             }
