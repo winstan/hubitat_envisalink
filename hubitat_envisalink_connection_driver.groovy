@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.9.2" }
+def version() { return "Envisalink 0.9.3" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -2097,6 +2097,9 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.9.3
+*   Changed Panel Type enum to be ["DSC", "Vista"] rather than ["0", "1"]. Device preference will need to be set again.
+*
 * Version: 0.9.2
 *   Bug fix on zones bypassed
 *   Logging changes
