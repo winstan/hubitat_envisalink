@@ -154,19 +154,19 @@ def uninstalled() {
 */
 
 def ArmAway(){
-    ifDebug("armAway()")
+    ifDebug("** ArmAway()")
     state.armState = "arming_away"
     composeArmAway()
 }
 
 def ArmHome(){
-    ifDebug("armHome()")
+    ifDebug("** ArmHome()")
     state.armState = "arming_home"
     composeArmHome()
 }
 
 def ArmNight(){
-    ifDebug("armNight()")
+    ifDebug("** ArmNight()")
     state.armState = "arming_night"
     composeArmNight()
 }
@@ -188,22 +188,22 @@ def configureZone(zonePosition, zoneDefinition){
 }
 
 def BypassZone(zone){
-    ifDebug("BypassZone ${zone}")
+    ifDebug("** BypassZone(${zone})")
     composeBypassZone(zone as int)
 }
 
 def ChimeToggle(){
-    ifDebug("ChimeToggle()")
+    ifDebug("** ChimeToggle()")
     composeChimeToggle()
 }
 
 def deleteUserCode(position){
-    ifDebug("deleteUserCode ${position}")
+    ifDebug("** deleteUserCode(${position})")
     composeDeleteUserCode(position)
 }
 
 def Disarm(){
-    ifDebug("Disarm()")
+    ifDebug("** Disarm()")
     composeDisarm()
 }
 
@@ -218,7 +218,7 @@ def off(){
 }
 
 def poll() {
-    ifDebug("Polling...")
+    ifDebug("* Polling...")
     composePoll()
 }
 
@@ -231,7 +231,7 @@ def siren(){
 }
 
 def StatusReport(){
-    ifDebug("StatusReport")
+    ifDebug("** StatusReport()")
     composeStatusReport()
 }
 
@@ -240,17 +240,17 @@ def strobe(){
 }
 
 def setUserCode(name, position, code){
-    ifDebug("setUserCode ${name} ${position} ${code}")
+    ifDebug("** setUserCode(${name} ${position} ${code})")
     composeSetUserCode(name, position, code)   
 }
 
 def setDelays(entry, entry2, exit){
-    ifDebug("setDelays ${entry} ${entry2} ${exit}")
+    ifDebug("setDelays(${entry} ${entry2} ${exit})")
     composeSetDelays(entry, entry2, exit)
 }
 
 def ToggleTimeStamp(){
-    ifDebug("Toggle Time Stamp")
+    ifDebug("** ToggleTimeStamp()")
     composeTimeStampToggle()
 }
 
@@ -391,9 +391,7 @@ private composeDeleteUserCode(position){
 private composeInstallerCode(){
     ifDebug("composeInstallerCode")
     if (PanelType as int == 0) {
-        def sendTelnetCommand = tpiCommands["CodeSend"] + installerCode
-        ifDebug(sendTelnetCommand)
-        sendTelnetCommand(sendTelnetCommand)
+        sendTelnetCommand(tpiCommands["CodeSend"] + installerCode)
     } else {
         ifDebug("Not supported by Vista TPI")
     }
@@ -923,10 +921,10 @@ private sendTelnetLogin(){
 
 private sendTelnetCommand(String s) {
     if (PanelType as int == 0) {
-        s = generateChksum(s)
+        schk = generateChksum(s)
     }
-    ifDebug("sendTelnetCommand() ${s}")
-    return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
+    ifDebug("* sendTelnetCommand(${s}) ${schk}")
+    return new hubitat.device.HubAction(schk, hubitat.device.Protocol.TELNET)
 }
 
 private sendProgrammingMessage(String s){
