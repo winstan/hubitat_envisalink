@@ -71,8 +71,7 @@ def mainPage() {
             showTitle()
             section("Define your Envisalink device") {
                 clearStateVariables()
-              input "PanelType", "enum", title: "Alarm Panel Type", required: true, multiple: false,
-                options: [[0:"DSC"],[1:"Vista"]]
+                input "PanelType", "enum", title: "Alarm Panel Type", required: true, multiple: false, options: ["DSC","Vista"]
                 input "envisalinkName", "text", title: "Envisalink Name", required: true, multiple: false, defaultValue: "Envisalink", submitOnChange: false
                 input "envisalinkIP", "text", title: "Envisalink IP Address", required: true, multiple: false, defaultValue: "", submitOnChange: false
                 input "envisalinkPassword", "text", title: "Envisalink Password", required: true, multiple: false, defaultValue: "", submitOnChange: false
