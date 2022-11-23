@@ -620,7 +620,7 @@ def parse(String message) {
             case PARTITIONNOTREADY:
                 partitionNotReady()
                 break
-            case PARTITIONNOTREADYFORCEARMINGENABLED:
+            case PARTITIONREADYFORCEARMINGENABLED:
                 partitionReadyForForcedArmEnabled()
                 break
             case PARTITIONINALARM:
@@ -664,7 +664,7 @@ def parse(String message) {
                         break
                 }
                 break
-            case PARTITIONARMEDSTATE:
+            case PARTITIONARMED:
                 int tpicmdlong = message.take(5) as int
                 switch (tpiResponses[tpicmdlong]) {
                     case PARTITIONARMEDAWAY:
@@ -1124,7 +1124,7 @@ private partitionNotReady(){
 
 private partitionReadyForForcedArmEnabled(){
     ifDebug("partitionReadyForForcedArmEnabled")
-    if (device.currentValue("Status") != PARTITIONNOTREADYFORCEARMINGENABLED) { send_Event(name:"Status", value: PARTITIONNOTREADYFORCEARMINGENABLED, isStateChange: true) }
+    if (device.currentValue("Status") != PARTITIONREADYFORCEARMINGENABLED) { send_Event(name:"Status", value: PARTITIONREADYFORCEARMINGENABLED, isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed") }
 }
 
@@ -1568,9 +1568,9 @@ private send_Event(evnt) {
 @Field static final String ZONE7ALARMRESTORE = "Zone 7 Alarm Restored"
 @Field static final String ZONE8ALARMRESTORE = "Zone 8 Alarm Restored"
 @Field static final String ZONETAMPER = "Zone Tamper"
-@Field static final String ZONETAMPERRESTORE = "Zone Tamper RestoreD"
+@Field static final String ZONETAMPERRESTORE = "Zone Tamper Restore"
 @Field static final String ZONEFAULT = "Zone Fault"
-@Field static final String ZONEFAULTRESTORED = "Zone Fault RestoreD"
+@Field static final String ZONEFAULTRESTORE = "Zone Fault Restore"
 @Field static final String ZONEOPEN = "Zone Open"
 @Field static final String ZONERESTORED = "Zone Restored"
 @Field static final String TIMERDUMP = "Envisalink Zone Timer Dump"
@@ -1582,22 +1582,22 @@ private send_Event(evnt) {
 @Field static final String AKEYRESTORED = "Aux Key Restored"
 @Field static final String PKEYALARM = "Panic Key Alarm"
 @Field static final String PKEYRESTORED = "Panic Key Restored"
-@Field static final String TWOWIRESMOKEAUXALARM = "2-Wire Smoke Aux Alarm"
-@Field static final String TWOWIRESMOKEAUXRESTORED = "2-Wire Smoke Aux Restored"
+@Field static final String TWOWIRESMOKEAUXALARM = "2-Wire Smoke/Aux Alarm"
+@Field static final String TWOWIRESMOKEAUXRESTORED = "2-Wire Smoke/Aux Restored"
 @Field static final String PARTITIONREADY = "Ready"
 @Field static final String PARTITIONNOTREADY = "Not Ready"
-@Field static final String PARTITIONARMEDSTATE = "Armed State"
+@Field static final String PARTITIONARMED = "Armed State"
 @Field static final String PARTITIONARMEDAWAY = "Armed Away"
 @Field static final String PARTITIONARMEDHOME = "Armed Home"
 @Field static final String PARTITIONARMEDNIGHT = "Armed Night"
-@Field static final String PARTITIONNOTREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
+@Field static final String PARTITIONREADYFORCEARMINGENABLED = "Partition Ready - Force Arming Enabled"
 @Field static final String PARTITIONINALARM = "In Alarm"
 @Field static final String PARTITIONDISARMED = "Disarmed"
 @Field static final String EXITDELAY = "Exit Delay in Progress"
 @Field static final String ENTRYDELAY = "Entry Delay in Progress"
 @Field static final String KEYPADLOCKOUT = "Keypad Lock-out"
 @Field static final String PARTITIONFAILEDTOARM = "Partition Failed to Arm"
-@Field static final String PFMOUTPUT = "PFM Output is in Progress"
+@Field static final String PGMOUTPUT = "PGM Output is in Progress"
 @Field static final String CHIMEENABLED = "Chime Enabled"
 @Field static final String CHIMEDISABLED = "Chime Disabled"
 @Field static final String INVALIDACCESSCODE = "Invalid Access Code"
@@ -1680,7 +1680,7 @@ private send_Event(evnt) {
     603: ZONETAMPER,
     604: ZONETAMPERRESTORE,
     605: ZONEFAULT,
-    606: ZONEFAULTRESTORED,
+    606: ZONEFAULTRESTORE,
     609: ZONEOPEN,
     610: ZONERESTORED,
     615: TIMERDUMP,
@@ -1696,17 +1696,17 @@ private send_Event(evnt) {
     632: TWOWIRESMOKEAUXRESTORED,
     650: PARTITIONREADY,
     651: PARTITIONNOTREADY,
-    652: PARTITIONARMEDSTATE,
+    652: PARTITIONARMED,
     65210: PARTITIONARMEDAWAY,
     65211: PARTITIONARMEDHOME,
-    653: PARTITIONNOTREADYFORCEARMINGENABLED,
+    653: PARTITIONREADYFORCEARMINGENABLED,
     654: PARTITIONINALARM,
     655: PARTITIONDISARMED,
     656: EXITDELAY,
     657: ENTRYDELAY,
     658: KEYPADLOCKOUT,
     659: PARTITIONFAILEDTOARM,
-    660: PFMOUTPUT,
+    660: PGMOUTPUT,
     663: CHIMEENABLED,
     664: CHIMEDISABLED,
     670: INVALIDACCESSCODE,
@@ -2132,7 +2132,7 @@ private send_Event(evnt) {
 
 /***********************************************************************************************************************
 * Version: 0.9.1
-*   Going through the TPI Command in the manual: 500 - 511
+*   Went through all the TPI Commands in the manual, mostly label updates.
 *
 * Version: 0.9.0
 *   Add zone bypass functionality - courtesy Dale Munn (damunn)
