@@ -558,7 +558,10 @@ def parse(String message) {
 
     if (PanelType == "DSC") {
 
-        message = preProcessMessage(message)
+        //strip time stamp if it exists
+        message = checkTimeStamp(message)
+        //strip checksum
+        message = message.take(message.size() - 2)
 
         int tpicmd = message.take(3) as int
         switch (tpiResponses[tpicmd]) {
@@ -964,22 +967,19 @@ private cmdAck(String previousCMD) {
     }
 }
 
-private isBitSet(byte b, int bit) {
-   return (b & (1 << bit)) != 0;
-}
-
 private checkTimeStamp(message){
+    String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
     if (message =~ timeStampPattern) {
         if (!state.timeStampOn) {
-            ifDebug("Time Stamp Found")
+            ifDebug("Time Stamping detected")
             state.timeStampOn = true;
         }
         message = message.replaceAll(timeStampPattern, "")
-        //ifDebug("Time Stamp Remove ${message}")
+        //ifDebug("Time Stamp Removed ${message}")
     } else {
         if (state.timeStampOn) {
+            ifDebug("Time Stamping no longer detected")
             state.timeStampOn = false;
-            ifDebug("Time Stamp Not Found")
         }
     }
     return message
@@ -1218,15 +1218,6 @@ private parseUser(partition, userPosition){
     }
 
     return userPosition
-}
-
-private preProcessMessage(message){
-    //ifDebug("Preprocessing Message")
-    message = checkTimeStamp(message)
-    //strip checksum
-    message = message.take(message.size() - 2)
-    //ifDebug("Stripping Checksum: ${message}")
-    return message
 }
 
 private removeChildDevices(delete) {
@@ -1478,8 +1469,6 @@ private send_Event(evnt) {
 /***********************************************************************************************************************
 *   Variables
 */
-
-@Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
 
 @Field final Map errorCodes = [
     0: "No Error",
