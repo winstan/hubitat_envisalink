@@ -76,7 +76,7 @@ metadata {
         }
 
     preferences {
-        def PanelTypes = ["0" : "DSC", "1" : "Vista"]
+        def PanelTypes = ["DSC", "Vista"]
         input ("PanelType", "enum", title: "Panel Type", options: PanelTypes, defaultValue: 0)
         input("ip", "text", title: "IP Address",  required: true)
         input("passwd", "text", title: "Password", required: true)
@@ -267,7 +267,7 @@ def createZone(zoneInfo){
     def newDevice
     if (zoneInfo.zoneType == "0") {
         newDevice = addChildDevice("hubitat", "Virtual Contact Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
-        if (PanelType as int == 1) {
+        if (PanelType == "Vista") {
             // Vista does not report contact sensors inactive... make it automatic
             // virtual contact sensor does not support autoInactive
             //ifDebug("Setting autoInactive for Virtual Contact Sensor for Vista Panel")
@@ -276,7 +276,7 @@ def createZone(zoneInfo){
 
     } else if (zoneInfo.zoneType == "1") {
         newDevice = addChildDevice("hubitat", "Virtual Motion Sensor", zoneInfo.deviceNetworkId, [name: zoneInfo.zoneName, isComponent: true, label: zoneInfo.zoneLabel])
-        if (PanelType as int == 0) {
+        if (PanelType == "DSC") {
             newDevice.updateSetting("autoInactive",[type:"enum", value:disabled])
         } else {
             // Vista does not report motion sensor inactive... make it automatic
@@ -304,7 +304,7 @@ private composeArmAway(){
     ifDebug("composeArmAway")
     state.armState = "arming_away"
     def message = tpiCommands["ArmAway"]
-    if (PanelType as int == 1) {
+    if (PanelType == "Vista") {
         message = masterCode + "2"
     }
     sendTelnetCommand(message)
@@ -314,7 +314,7 @@ private composeArmHome(){
     ifDebug("composeArmHome")
     state.armState = "arming_home"
     def message = tpiCommands["ArmHome"]
-    if (PanelType as int == 1) {
+    if (PanelType == "Vista") {
         message = masterCode + "3"
     }
     sendTelnetCommand(message)
@@ -324,14 +324,14 @@ private composeArmNight(){
     ifDebug("composeArmNight")
     state.armState = "arming_night"
     def message = tpiCommands["ArmNight"]
-    if (PanelType as int == 1) {
+    if (PanelType == "Vista") {
         message = masterCode + "3"
     }
     sendTelnetCommand(message)
 }
 /*
 private composeArmNight(){
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         ifDebug("composeArmNight - NOT SUPPORTED BY DSC PANEL")
     } else {
         ifDebug("composeArmNight")
@@ -351,7 +351,7 @@ private composeBypassZone(int zone){
 private composeChimeToggle(){
     ifDebug("composeChimeToggle")
     def message = tpiCommands["ToggleChime"]
-    if (PanelType as int == 1) { message = masterCode + "9" }
+    if (PanelType == "Vista") { message = masterCode + "9" }
     sendTelnetCommand(message)
 }
 
@@ -367,7 +367,7 @@ private composeExitInstallerMode(){
 
 private composeDisarm(){
     ifDebug("composeDisarm")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         def message = tpiCommands["Disarm"] + masterCode
         sendTelnetCommand(message)
     } else {
@@ -390,7 +390,7 @@ private composeDeleteUserCode(position){
 
 private composeInstallerCode(){
     ifDebug("composeInstallerCode")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         sendTelnetCommand(tpiCommands["CodeSend"] + installerCode)
     } else {
         ifDebug("Not supported by Vista TPI")
@@ -399,14 +399,14 @@ private composeInstallerCode(){
 
 private composeKeyStrokes(data){
     ifDebug("composeKeyStrokes: ${data}")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         sendMessage = tpiCommands["SendKeyStroke"]
     } else { sendMessage = "" }
     sendProgrammingMessage(sendMessage + data)
 }
 
 private composeMasterCode(){
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         def message = tpiCommands["CodeSend"] + masterCode
         //sendTelnetCommand(message)
         //EDITED TO SEND TELNET COMMAND A DIFFERENT WAY
@@ -420,7 +420,7 @@ private composeMasterCode(){
 
 private composePoll(){
     ifDebug("composePoll")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         def message = tpiCommands["Poll"]
         sendTelnetCommand(message)
     } else {
@@ -430,7 +430,7 @@ private composePoll(){
 
 private composeStatusReport(){
     ifDebug("composeStatusReport")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         sendTelnetCommand(tpiCommands["StatusReport"])
     } else {
         ifDebug("Not supported by Vista TPI")
@@ -439,7 +439,7 @@ private composeStatusReport(){
 
 private composeSetUserCode(name, position, code){
     ifDebug("composeSetUserCode")
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         state.programmingMode = SETUSERCODE
         ifDebug("Current Codes: ${device.currentValue("Codes")}")
         if (!device.currentValue("Codes")) {
@@ -488,7 +488,7 @@ private composeSetDelays(entry, entry2, exit){
 }
 
 private composeTimeStampToggle(){
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         ifDebug("composeTimeStampToggle")
 
         def message
@@ -511,7 +511,7 @@ private composeZoneConfiguration(zonePosition, zoneDefinition){
 private composeZeroEntryDelayArm(){
     ifDebug("composeZeroEntryDelayArm")
     def message = tpiCommands["ArmAwayZeroEntry"]
-    if (PanelType as int == 1) {
+    if (PanelType == "Vista") {
         // equivilent to Arm Stay Instant
         message = masterCode + "7"
     }
@@ -556,7 +556,7 @@ private parseVistaFlags(flagBitMask, flagBeep, alphaDisplay){
 def parse(String message) {
     ifDebug("Parsing for panel type " + PanelType + ": [" + message + "]")
 
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
 
         message = preProcessMessage(message)
 
@@ -894,7 +894,7 @@ private getCIDQualifier(String Event, String Code) {
 
 private sendTelnetLogin(){
     def cmdToSend =  "${passwd}"
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         cmdToSend =  generateChksum(tpiCommands["Login"] + "${passwd}")
     }
     cmdToSend = cmdToSend + "\r\n"
@@ -903,7 +903,7 @@ private sendTelnetLogin(){
 }
 
 private sendTelnetCommand(String s) {
-    if (PanelType as int == 0) {
+    if (PanelType == "DSC") {
         schk = generateChksum(s)
     }
     ifDebug("* sendTelnetCommand(${s}) ${schk}")
@@ -1157,7 +1157,7 @@ private partitionDisarmed(String partition){
             sendLocationEvent(name: "hsmSetArm", value: "disarm"); ifDebug("sendLocationEvent(name:\"hsmSetArm\", value:\"disarm\")")
         }
     }
-    if (device.currentValue("CID_Code") != "") {
+    if ((device.currentValue("CID_Code") != "") && (PanelType == "Vista")) {
         send_Event(name: "CID_Code", value: "", isStateChange: true)
         send_Event(name: "CID_Type", value: "", isStateChange: true)
         send_Event(name: "CID_Partition", value: "", isStateChange: true)
@@ -1374,31 +1374,31 @@ private zoneOpen(zone, Boolean autoReset = false){
             if (zoneDevice.latestValue("contact") != "open") {
                 ifDebug("Setting contact $zoneDevice as open")
                 zoneDevice.open()
-                if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
+                if ((PanelType == "Vista") && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"close") }
             }
         } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "active") {
                 ifDebug("Setting motion $zoneDevice as active")
                 zoneDevice.active()
-                if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
+                if ((PanelType == "Vista") && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(245,"close") }
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") == "clear") {
                 ifDebug("Setting CO detector $zoneDevice as detected")
                 zoneDevice.detected()
-                if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+                if ((PanelType == "Vista") && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
         } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") == "clear") {
                 ifDebug("Setting smoke detector $zoneDevice as detected")
                 zoneDevice.detected()
-                if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+                if ((PanelType == "Vista") && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
         } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") == "clear") {
                 ifDebug("Setting GlassBreak Detector $zoneDevice as detected")
                 zoneDevice.detected()
-                if ((PanelType as int == 1) && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
+                if ((PanelType == "Vista") && autoReset) { zoneDevice.unschedule(); zoneDevice.runIn(60,"clear") }
             }
         }
     }
@@ -1412,31 +1412,31 @@ private zoneClosed(zone){
             if (zoneDevice.latestValue("contact") != "closed") {
                 ifDebug("Setting contact $zoneDevice as closed")
                 zoneDevice.close()
-                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+                if ((PanelType == "Vista") && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("motion")) {
             if (zoneDevice.latestValue("motion") != "inactive") {
                 ifDebug("Setting motion $zoneDevice as inactive")
                 zoneDevice.inactive()
-                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+                if ((PanelType == "Vista") && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("carbonMonoxide")) {
             if (zoneDevice.latestValue("carbonMonoxide") != "clear") {
                 ifDebug("Setting CO detector $zoneDevice as clear")
                 zoneDevice.clear()
-                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+                if ((PanelType == "Vista") && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("smoke")) {
             if (zoneDevice.latestValue("smoke") != "clear") {
                 ifDebug("Setting smoke detector $zoneDevice as clear")
                 zoneDevice.clear()
-                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+                if ((PanelType == "Vista") && autoReset) zoneDevice.unschedule()
             }
         } else if (zoneDevice.hasAttribute("shock")) {
             if (zoneDevice.latestValue("shock") != "clear") {
                 ifDebug("Setting GlassBreak Detector $zoneDevice as clear")
                 zoneDevice.clear()
-                if ((PanelType as int == 1) && autoReset) zoneDevice.unschedule()
+                if ((PanelType == "Vista") && autoReset) zoneDevice.unschedule()
             }
         }
     }
