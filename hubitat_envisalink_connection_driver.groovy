@@ -658,7 +658,7 @@ def parse(String message) {
                         logError(PASSWORDINCORRECT)
                         break
                     case LOGINSUCCESSFUL:
-                        ifDebug(LOGINSUCCESSFUL)
+                        send_Event(name: "networkStatus", value: "online")
                         break
                     case LOGINTIMEOUT:
                         logError(LOGINTIMEOUT)
@@ -1048,12 +1048,9 @@ private ifDebug(msg){
 }
 
 private loginPrompt(){
-    ifDebug("loginPrompt")
-    send_Event(name: "networkStatus", value: "online")
-    ifDebug("Connection to Envisalink established")
+    ifDebug("loginPrompt()")
     state.reTryCount = 0
     sendTelnetLogin()
-    ifDebug(LOGINPROMPT)
 }
 
 private keypadLockout(){
