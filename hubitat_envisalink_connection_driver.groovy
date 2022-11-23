@@ -77,7 +77,7 @@ metadata {
 
     preferences {
         def PanelTypes = ["DSC", "Vista"]
-        input ("PanelType", "enum", title: "Panel Type", options: PanelTypes, defaultValue: 0)
+        input ("PanelType", "enum", title: "Panel Type", options: PanelTypes, defaultValue: "DSC")
         input("ip", "text", title: "IP Address",  required: true)
         input("passwd", "text", title: "Password", required: true)
         input("masterCode", "text", title: "Master Code", required: true)
