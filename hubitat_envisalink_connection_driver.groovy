@@ -65,8 +65,8 @@ metadata {
             attribute "Codes", "json"
             attribute "LastUsedCodePosition", "string"
             attribute "LastUsedCodeName", "string"
-            attribute "Trouble LED", "string"
-            attribute "Bypassed Zones", "string"
+            attribute "TroubleLED", "string"
+            attribute "BypassedZones", "string"
 
             attribute "CID_Code", "string"
             attribute "CID_Type", "string"
@@ -678,10 +678,10 @@ def parse(String message) {
                 send_Event(name:"Status", value: PARTIALCLOSING, isStateChange: true)
                 break
             case TROUBLELEDON:
-                if (device.currentValue("Trouble LED") != 'on') {send_Event(name:"Trouble LED", value: 'on')}
+                if (device.currentValue("TroubleLED") != 'on') {send_Event(name:"TroubleLED", value: 'on')}
                 break
             case TROUBLELEDOFF:
-                if (device.currentValue("Trouble LED") != 'off') {send_Event(name:"Trouble LED", value: 'off')}
+                if (device.currentValue("TroubleLED") != 'off') {send_Event(name:"TroubleLED", value: 'off')}
                 break
             case INVALIDACCESSCODE:
                 send_Event(name:"Status", value: INVALIDACCESSCODE)
@@ -1139,7 +1139,7 @@ private partitionDisarmed(String partition){
             send_Event(name:"Status", value: PARTITIONDISARMED, isStateChange: true) 
             //log.info "partitionDisarmed() send Event Status = Disarmed"
     }
-    if (device.currentValue("Bypassed Zones") != "none") { send_Event(name:"Bypassed Zones", value: "none", isStateChange: true) }
+    if (device.currentValue("BypassedZones") != "none") { send_Event(name:"BypassedZones", value: "none", isStateChange: true) }
     if (device.currentValue("switch") != "off") { send_Event(name:"switch", value: "off", isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
     //log.info "partitionDisarmed() state.armState = $state.armState: Status: $st switch: $sw contact: $co"
@@ -1448,7 +1448,7 @@ private zonesBypassed(String zones) {
     }
     if (s.length() == 0) s = "none"
 
-    send_Event(name:"Bypassed Zones", value : s)
+    send_Event(name:"BypassedZones", value : s)
 }
 
 private zoneTamper(message){
