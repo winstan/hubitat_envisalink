@@ -1443,19 +1443,18 @@ private zoneClosed(zone){
 }
 
 private zonesBypassed(String zones) {
-    int j = 0
+    // zones is a 16-char HEX string (8 bytes)
+    // The lower 8 zones are in the first position of the bitfield.
+    String bits = Long.toBinaryString(Long.decode("0x${zones[0..7]}")).padLeft(32, "0") +
+                  Long.toBinaryString(Long.decode("0x${zones[8..15]}")).padLeft(32, "0")
+    ifDebug("zonesBypassed(0x${zones}) ${bits}")
+
     String s = ""
-    zones.each {
-        int c = hexdig[it]
-        int i = j
-        while (c != 0) {
-            ++i
-            if (c & 1) s += String.format("%02d ", i)
-            c >>= 1
-        }
-        j += 4
+    for(int i = 0; i<64; i++) {
+         if (bits[i] == '1') s += String.format("%02d ", i+1)
     }
     if (s.length() == 0) s = "none"
+
     send_Event(name:"Bypassed Zones", value : s)
 }
 
@@ -1481,25 +1480,6 @@ private send_Event(evnt) {
 */
 
 @Field String timeStampPattern = ~/^\d{2}:\d{2}:\d{2} /
-
-@Field final Map hexdig = [
-    '0'    :    0,
-    '1'    :    1,
-    '2'    :    2,
-    '3'    :    3,
-    '4'    :    4,
-    '5'    :    5,
-    '6'    :    6,
-    '7'    :    7,
-    '8'    :    8,
-    '9'    :    9,
-    'A'    :    10,
-    'B'    :    11,
-    'C'    :    12,
-    'D'    :    13,
-    'E'    :    14,
-    'F'    :    15
-]
 
 @Field final Map errorCodes = [
     0: "No Error",
