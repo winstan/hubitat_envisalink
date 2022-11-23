@@ -58,7 +58,7 @@ metadata {
             command "setUserCode", [[name: "name*", type: "STRING"], [name: "position*", type: "NUMBER"], [name: "code*", type: "NUMBER"]]
             command "deleteUserCode", [[name: "position*", type: "NUMBER"]]
             //command "configureZone", [[name: "position*", type: "NUMBER"], [name: "definition*", type: "NUMBER"]]
-            command "BypassZone", [[name: "zone", type: "NUMBER"]]
+            command "BypassZone", [[name: "zone", type: "NUMBER", description: "Leave blank to refresh BypassedZones"]]
             //command "testParse", ["String"]
 
             attribute "Status", "string"
