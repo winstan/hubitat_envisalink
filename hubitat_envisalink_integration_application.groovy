@@ -28,7 +28,7 @@
 import groovy.json.JsonSlurper
 import groovy.util.XmlSlurper
 
-def version() { return "Envisalink 0.5.6" }
+def version() { return "Envisalink 0.5.7" }
 
 definition(
     name: "Envisalink Integration",
@@ -866,7 +866,7 @@ def showTitle(){
 }
 
 private ifDebug(msg){
-    if (msg && state.isDebug)  log.debug 'Envisalink Integration: ' + msg
+    if (msg && state.isDebug)  log.debug msg
 }
 
 private logError(msg){
@@ -912,6 +912,9 @@ def uninstalled() {
 }
 
 /***********************************************************************************************************************
+* Version: 0.5.7
+*   Prefixing debug log messages is not helpful. Removing.
+*
 * Version: 0.5.6
 *   Make lockUseHandler log an info message on entry rather than warning.
 *
