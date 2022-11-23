@@ -567,6 +567,8 @@ def parse(String message) {
         int tpicmd = message.take(3) as int
         switch (tpiResponses[tpicmd]) {
             case COMMANDACKNOWLEDGE:
+                // Previous CMD received.
+                previousCMD = message[3..5]
                 switch (state.programmingMode) {
                     case SETUSERCODESEND:
                         setUserCodeSend()
@@ -589,7 +591,7 @@ def parse(String message) {
                 logError(message)
                 break
             case SYSTEMERROR:
-                systemError(message)
+                systemError(message[3..5])
                 break
             case KEYPADLEDSTATE:
                 keypadLedState(message[3..4])
@@ -606,10 +608,10 @@ def parse(String message) {
                 composeInstallerCode()
                 break
             case ZONEOPEN:
-                zoneOpen(message)
+                zoneOpen(message[3..5])
                 break
             case ZONERESTORED:
-                zoneClosed(message)
+                zoneClosed(message[3..5])
                 break
             case BYPASSEDZONEBITFIELDDUMP:
                 zonesBypassed(message.substring(4))
@@ -679,11 +681,11 @@ def parse(String message) {
                 }
                 break
             case USEROPENING:
-                parseUser(message)
+                parseUser(message[3], message[4..7])
                 break
             case USERCLOSING:
                 partitionArmedNight()
-                parseUser(message)
+                parseUser(message[3], message[4..7])
                 break
             case SPECIALCLOSING:
                 send_Event(name:"Status", value: SPECIALCLOSING, isStateChange: true)
@@ -742,7 +744,7 @@ def parse(String message) {
             def vistaFlags = parseVistaFlags(mFlags,mChime,mDisplay)
             ifDebug("Vista FLAGS = " + vistaFlags.inspect())
 
-            if ( vistaFlags.ALARM ) { zoneOpen("000" + mUserOrZone.toString(), false); partitionAlarm() }
+            if ( vistaFlags.ALARM ) { zoneOpen(mUserOrZone.toString(), false); partitionAlarm() }
             else if ( vistaFlags.ALARM_FIRE || vistaFlags.FIRE_ALARM ) { partitionAlarm() }
             else if ( vistaFlags.READY ) { if (state.armState != "disarmed") { partitionDisarmed() }; partitionReady() }
             else if ( vistaFlags.ENTRY_DELAY_ACTIVE ) { entryDelay() }
@@ -760,7 +762,7 @@ def parse(String message) {
             }
             if ( mDisplay.startsWith("FAULT") ) {
                 ifDebug("     Keypad Update: Zone " + mUserOrZone + " Tripped!")
-                zoneOpen("000" + mUserOrZone.toString())
+                zoneOpen(mUserOrZone.toString())
             }
             if ( mDisplay.startsWith("BYPAS") ) {
                 ifDebug("     Keypad Update: Zone " + mUserOrZone + " Bypassed!")
@@ -769,7 +771,7 @@ def parse(String message) {
                 // check is fired when the zone is tripped and it is Vista zone type 12 (24hr monitor)
                 //log.info "Vista CHECK just ran.." 
                 ifDebug("     Keypad Update: Zone " + mUserOrZone + " CHECK notification!")
-                zoneOpen("000" + mUserOrZone.toString(), true)
+                zoneOpen(mUserOrZone.toString(), true)
             }
             if ( mDisplay.startsWith("TRBL") ) {
                 ifDebug("     Keypad Update: Zone " + mUserOrZone + " TROUBLE/TAMPER notification!")
@@ -786,10 +788,10 @@ def parse(String message) {
                 if ( ZoneState & (2**(i-1)) ) {
                     ifDebug("     Zone State Change: Zone " + i + " Tripped!")
                     //log.info "OLD Zone State Change: Zone " + i + " Open"
-                    zoneOpen("000" + i.toString())
+                    zoneOpen(i.toString())
                 } else {
                     //log.info "OLD Zone State Change: Zone " + i + " Closed"
-                    zoneClosed("000" + i.toString())
+                    zoneClosed(i.toString())
                 }
             }
         }
@@ -1205,11 +1207,8 @@ private partitionArmedNight(){
     systemArmedNight()
 }
 
-private parseUser(message){
-    ifDebug("parseUser")
-    def length = message.size()
-    def userPosition = message.substring(6,length)
-    ifDebug("${USEROPENING} - ${userPosition}" )
+private parseUser(partition, userPosition){
+    ifDebug("parseUser - ${userPosition}" )
 
     send_Event(name:"LastUsedCodePosition", value: userPosition)
 
@@ -1312,10 +1311,8 @@ private systemArmedNight(){
     }
 }
 
-private systemError(message){
-    // Error code is the next 3 bytes: 000-255
-    def errorcode = message[3..5] as int
-    def errormsg = errorCodes[errorcode]
+private systemError(errorcode){
+    def errormsg = errorCodes[errorcode as int]
     logError("System Error: ${errorcode} - ${errormsg}")
 
     if (errormsg == "Receive Buffer Overrun") {
@@ -1378,8 +1375,7 @@ private getZoneDevice(zoneId) {
     return zoneDevice
 }
 
-private zoneOpen(message, Boolean autoReset = false){
-    def zone = message[3..5]
+private zoneOpen(zone, Boolean autoReset = false){
     def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
@@ -1417,8 +1413,7 @@ private zoneOpen(message, Boolean autoReset = false){
     }
 }
 
-private zoneClosed(message){
-    def zone = message[3..5]
+private zoneClosed(zone){
     def zoneDevice = getZoneDevice(zone)
     if (zoneDevice) {
         ifDebug(zoneDevice)
