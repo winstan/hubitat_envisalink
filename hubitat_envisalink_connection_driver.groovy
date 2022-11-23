@@ -408,17 +408,15 @@ private composeKeyStrokes(data){
 }
 
 private composeMasterCode(){
-    ifDebug("composeMasterCode")
     if (PanelType as int == 0) {
         def message = tpiCommands["CodeSend"] + masterCode
-        ifDebug(message)
         //sendTelnetCommand(message)
         //EDITED TO SEND TELNET COMMAND A DIFFERENT WAY
         message = generateChksum(message)
-        ifDebug(message)
+        ifDebug("composeMasterCode() ${message}")
         sendHubCommand(new hubitat.device.HubAction(message, hubitat.device.Protocol.TELNET))
     } else {
-        ifDebug("Not supported by Vista TPI")
+        ifDebug("composeMasterCode() Not supported by Vista TPI")
     }
 }
 
@@ -914,12 +912,12 @@ private getCIDQualifier(String Event, String Code) {
 }
 
 private sendTelnetLogin(){
-    ifDebug("sendTelnetLogin: ${passwd}")
     def cmdToSend =  "${passwd}"
     if (PanelType as int == 0) {
         cmdToSend =  generateChksum(tpiCommands["Login"] + "${passwd}")
     }
     cmdToSend = cmdToSend + "\r\n"
+    ifDebug("sendTelnetLogin() ${cmdToSend}")
     sendHubCommand(new hubitat.device.HubAction(cmdToSend, hubitat.device.Protocol.TELNET))
 }
 
@@ -927,13 +925,13 @@ private sendTelnetCommand(String s) {
     if (PanelType as int == 0) {
         s = generateChksum(s)
     }
-    ifDebug("sendTelnetCommand $s")
+    ifDebug("sendTelnetCommand() ${s}")
     return new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET)
 }
 
 private sendProgrammingMessage(String s){
     s = generateChksum(s)
-    ifDebug("sendProgrammingMessage: ${s}")
+    ifDebug("sendProgrammingMessage() ${s}")
     def hubaction = new hubitat.device.HubAction(s, hubitat.device.Protocol.TELNET) 
     sendHubCommand(hubaction);
 }
@@ -1027,7 +1025,6 @@ private exitDelay(){
 }
 
 private generateChksum(String cmdToSend){
-    ifDebug("generateChksum(${cmdToSend})")
     int cmdSum = 0
     cmdToSend.each { cmdSum += (int)it }
     cmdSum &= 0xff
