@@ -724,23 +724,21 @@ private speakRetry(data){
 }
 
 private lockIt(){
-    ifDebug("Lock")
+    ifDebug("lockIt()")
     if (!armLocks) return
     ifDebug("Found Lock")
     armLocks.lock()
 }
 
 private unlockIt(){
-    ifDebug("Unlock")
+    ifDebug("unlockIt()")
     if (!disarmLocks) return
     ifDebug("Found Lock")
     disarmLocks.unlock()
 }
 
 def switchItArmed(){
-    ifDebug("switchItArmed")
-    ifDebug("On Delay: ${onSwitchDelayArmed}")
-    ifDebug("Off Delay: ${offSwitchDelayArmed}")
+    ifDebug("switchItArmed() On Delay: ${onSwitchDelayArmed}, Off Delay: ${offSwitchDelayArmed}")
     if (onSwitchDelayArmed){
         runIn(onSwitchDelayArmed*60, onSwitchesOn)
     } else {
@@ -759,9 +757,7 @@ def switchItArmed(){
 }
 
 def switchItDisarmed(){
-    ifDebug("switchItDisarmed")
-    ifDebug("On Delay: ${offSwitchDelayDisarmed}")
-    ifDebug("Off Delay: ${onSwitchDelayDisarmed}")
+    ifDebug("switchItDisarmed() On Delay: ${offSwitchDelayDisarmed}, Off Delay: ${onSwitchDelayDisarmed}")
     if (onSwitchDelayDisarmed){
         runIn(onSwitchDelayDisarmed*60, onSwitchesOff)
     } else {
@@ -776,32 +772,37 @@ def switchItDisarmed(){
 
 def onSwitchesOn(){
     if (!onSwitches) return
-    ifDebug("Armed Switches On")
+    ifDebug("onSwitchesOn()")
+    // Armed Switches On
     onSwitches.on()
 }
 
 def onSwitchesOff(){
     if (!onSwitches) return
-    ifDebug("Armed Switches Off")
+    ifDebug("onSwitchesOff()")
+    // Armed Switches Off
     onSwitches.off()
 }
 
 def offSwitchesOn(){
     if (!offSwitches) return
-    ifDebug("Disarmed Switches On")
+    ifDebug("offSwitchesOn()")
+    // Disarmed Switches On
     offSwitches.on()
 }
 
 def offSwitchesOff(){
     if (!offSwitches) return
-    ifDebug("Disarmed Switches Off")
+    ifDebug("offSwitchesOff()")
+    // Disarmed Switches Off
     offSwitches.off()
 
 }
 
 def offNoOnSwitchesOff(){
     if (!offNoOnSwitches) return
-    ifDebug("Disarmed Switches Off [Only]")
+    ifDebug("offNoOnSwitchesOff()")
+    // Disarmed Switches Off [Only]
     offNoOnSwitches.off()
 }
 
