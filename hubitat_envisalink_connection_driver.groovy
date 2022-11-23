@@ -29,7 +29,7 @@
 
 import groovy.transform.Field
 
-def version() { return "Envisalink 0.9.1" }
+def version() { return "Envisalink 0.9.2" }
 metadata {
     definition (name: "Envisalink Connection", 
         namespace: "dwb", 
@@ -2097,6 +2097,10 @@ private send_Event(evnt) {
 ]
 
 /***********************************************************************************************************************
+* Version: 0.9.2
+*   Bug fix on zones bypassed
+*   Logging changes
+*
 * Version: 0.9.1
 *   Went through all the TPI Commands in the manual, mostly label updates.
 *
