@@ -594,8 +594,6 @@ def parse(String message) {
             case KEYPADLEDSTATE:
                 keypadLedState(message[3..4])
                 break
-            case KEYPADLEDFLASHSTATE:
-                break
             case CODEREQUIRED:
                 composeMasterCode()
                 break
@@ -691,8 +689,6 @@ def parse(String message) {
             case PARTIALCLOSING:
                 send_Event(name:"Status", value: PARTIALCLOSING, isStateChange: true)
                 break
-            case SPECIALOPENING:
-                break
             case TROUBLELEDON:
                 if (device.currentValue("Trouble LED") != 'on') {send_Event(name:"Trouble LED", value: 'on')}
                 break
@@ -702,10 +698,14 @@ def parse(String message) {
             case INVALIDACCESSCODE:
                 send_Event(name:"Status", value: INVALIDACCESSCODE)
                 break
+            // The no-operation commands we don't normally want log messages for.
+            case KEYPADLEDFLASHSTATE:
+            case SPECIALOPENING:
             case PARTITIONISBUSY:
+                ifDebug("NOOP - TPI command (" + tpicmd + "): " + tpiResponses[tpicmd])
                 break
             default:
-                log.warn("Unhandled tpicmd (" + tpicmd + "): " + tpiResponses[tpicmd])
+                log.info("NOOP - TPI command (" + tpicmd + "): " + tpiResponses[tpicmd])
                 break
         }
 
