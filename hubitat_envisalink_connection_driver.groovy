@@ -236,7 +236,7 @@ def StatusReport(){
 }
 
 def strobe(){
-    ifDebug("Stobe : NOT IMPLEMENTED")
+    ifDebug("Strobe : NOT IMPLEMENTED")
 }
 
 def setUserCode(name, position, code){
