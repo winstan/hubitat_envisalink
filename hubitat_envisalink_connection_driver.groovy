@@ -566,7 +566,7 @@ def parse(String message) {
                 cmdAck(message[3..5])
                 break
             case COMMANDERROR:
-                logError(message)
+                logError(COMMANDERROR)
                 break
             case SYSTEMERROR:
                 systemError(message[3..5])
@@ -593,28 +593,28 @@ def parse(String message) {
                 zonesBypassed(message.substring(4))
                 break
             case PARTITIONREADY:
-                partitionReady()
+                partitionReady(message[3])
                 break
             case PARTITIONNOTREADY:
-                partitionNotReady()
+                partitionNotReady(message[3])
                 break
             case PARTITIONREADYFORCEARMINGENABLED:
-                partitionReadyForForcedArmEnabled()
+                partitionReadyForForcedArmEnabled(message[3])
                 break
             case PARTITIONINALARM:
-                partitionAlarm()
+                partitionAlarm(message[3])
                 break
             case PARTITIONDISARMED:
-                partitionDisarmed()
+                partitionDisarmed(message[3])
                 break
             case EXITDELAY:
-                exitDelay()
+                exitDelay(message[3])
                 break
             case ENTRYDELAY:
-                entryDelay()
+                entryDelay(message[3])
                 break
             case KEYPADLOCKOUT:
-                keypadLockout()
+                send_Event(name:"Status", value: KEYPADLOCKOUT)
                 break
             case CHIMEENABLED:
                 send_Event(name:"Chime", value: CHIMEENABLED)
@@ -643,16 +643,21 @@ def parse(String message) {
                 }
                 break
             case PARTITIONARMED:
-                int tpicmdlong = message.take(5) as int
-                switch (tpiResponses[tpicmdlong]) {
-                    case PARTITIONARMEDAWAY:
-                        partitionArmedAway()
+                String partition = message[3]
+                int mode = message[4] as int
+                ifDebug("Partition ${partition} armed mode ${mode}")
+                // AWAY = 0, STAY = 1, ZERO-ENTRY-AWAY = 2, ZERO-ENTRY-STAY = 3
+                switch (mode) {
+                    case 0:
+                    case 2:
+                        partitionArmedAway(partition)
                         break
-                    case PARTITIONARMEDHOME:
-                        partitionArmedHome()
+                    case 1:
+                    case 3:
+                        partitionArmedHome(partition)
                         break
                     default:
-                        ifDebug("Unhandled tpicmdlong (" + tpicmdlong + "): " + tpiResponses[tpicmdlong])
+                        logError("Unexpected arming mode: ${message}")
                         break
                 }
                 break
@@ -660,7 +665,7 @@ def parse(String message) {
                 parseUser(message[3], message[4..7])
                 break
             case USERCLOSING:
-                partitionArmedNight()
+                partitionArmedNight(message[3])
                 parseUser(message[3], message[4..7])
                 break
             case SPECIALCLOSING:
@@ -679,8 +684,6 @@ def parse(String message) {
                 send_Event(name:"Status", value: INVALIDACCESSCODE)
                 break
             // The no-operation commands we don't normally want log messages for.
-            case KEYPADLEDFLASHSTATE:
-            case SPECIALOPENING:
             case PARTITIONISBUSY:
                 ifDebug("NOOP - TPI command (" + tpicmd + "): " + tpiResponses[tpicmd])
                 break
@@ -1009,15 +1012,15 @@ private deleteUserCodeComplete(){
 
 }
 
-private entryDelay(){
-    ifDebug("entryDelay")
+private entryDelay(String partition){
+    ifDebug("entryDelay(${partition})")
     send_Event(name:"Status", value: ENTRYDELAY)
     state.armState = "intrusion"
     parent.speakEntryDelay()
 }
 
-private exitDelay(){
-    ifDebug("exitDelay")
+private exitDelay(String partition){
+    ifDebug("exitDelay(${partition})")
     send_Event(name:"Status", value: EXITDELAY)
     parent.speakExitDelay()
 }
@@ -1046,11 +1049,6 @@ private loginPrompt(){
     ifDebug("loginPrompt()")
     state.reTryCount = 0
     sendTelnetLogin()
-}
-
-private keypadLockout(){
-    ifDebug("keypadLockout")
-    send_Event(name:"Status", value: KEYPADLOCKOUT)
 }
 
 private keypadLedState(ledState){
@@ -1083,8 +1081,8 @@ private logError(msg){
     parent.logError('Connection Driver: ' + msg)
 }
 
-private partitionReady(){
-    ifDebug("partitionReady")
+private partitionReady(String partition){
+    ifDebug("partitionReady(${partition})")
     def st = device.currentValue("Status")
     def sw = device.currentValue("switch")
     def co = device.currentValue("contact")
@@ -1106,8 +1104,8 @@ private partitionReady(){
 
 }
 
-private partitionNotReady(){
-    ifDebug("partitionNotReady")
+private partitionNotReady(String partition){
+    ifDebug("partitionNotReady(${partition})")
     //def st = device.currentValue("Status")
     //def sw = device.currentValue("switch")
     //def co = device.currentValue("contact")
@@ -1117,22 +1115,22 @@ private partitionNotReady(){
 
 }
 
-private partitionReadyForForcedArmEnabled(){
-    ifDebug("partitionReadyForForcedArmEnabled()")
+private partitionReadyForForcedArmEnabled(String partition){
+    ifDebug("partitionReadyForForcedArmEnabled(${partition})")
     if (device.currentValue("Status") != PARTITIONREADYFORCEARMINGENABLED) { send_Event(name:"Status", value: PARTITIONREADYFORCEARMINGENABLED, isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed") }
 }
 
-private partitionAlarm(){
-    ifDebug("partitionAlarm")
+private partitionAlarm(String partition){
+    ifDebug("partitionAlarm(${partition})")
     if (device.currentValue("Status") != PARTITIONINALARM) { send_Event(name:"Status", value: PARTITIONINALARM, isStateChange: true) }
     if (device.currentValue("contact") != "open") { send_Event(name:"contact", value: "open", isStateChange: true) }
     state.armState = "alarming"
     parent.speakAlarm()
 }
 
-private partitionDisarmed(){
-    ifDebug("partitionDisarmed")
+private partitionDisarmed(String partition){
+    ifDebug("partitionDisarmed(${partition})")
     //def st = device.currentValue("Status")
     //def sw = device.currentValue("switch")
     //def co = device.currentValue("contact")
@@ -1168,8 +1166,8 @@ private partitionDisarmed(){
     }
 }
 
-private partitionArmedAway(){
-    ifDebug("partitionArmedAway")
+private partitionArmedAway(String partition = ''){
+    ifDebug("partitionArmedAway(${partition})")
     if (device.currentValue("Status") != PARTITIONARMEDAWAY) { send_Event(name:"Status", value: PARTITIONARMEDAWAY, isStateChange: true) }
     if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
@@ -1180,8 +1178,8 @@ private partitionArmedAway(){
 //    }
 }
 
-private partitionArmedHome(){
-    ifDebug("partitionArmedHome")
+private partitionArmedHome(String partition = ''){
+    ifDebug("partitionArmedHome(${partition})")
     if (device.currentValue("Status") != PARTITIONARMEDHOME) { send_Event(name:"Status", value: PARTITIONARMEDHOME, isStateChange: true) }
     if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
@@ -1192,8 +1190,8 @@ private partitionArmedHome(){
 //    }
 }
 // CHANGED THIS TO READ A DIFFERENT KEYPAD STATE FOR NIGHT MODE
-private partitionArmedNight(){
-    ifDebug("partitionArmedNight")
+private partitionArmedNight(String partition = ''){
+    ifDebug("partitionArmedNight(${partition})")
     if (device.currentValue("Status") != USERCLOSING) { send_Event(name:"Status", value: PARTITIONARMEDNIGHT, isStateChange: true) }
     if (device.currentValue("switch") != "on") { send_Event(name:"switch", value: "on", isStateChange: true) }
     if (device.currentValue("contact") != "closed") { send_Event(name:"contact", value: "closed", isStateChange: true) }
