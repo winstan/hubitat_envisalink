@@ -385,7 +385,7 @@ private composeDeleteUserCode(position){
     ifDebug("padded code position ${codePosition}")
     state.programmingMode = DELETEUSERCODEINITIALIZE
     state.newCodePosition = codePosition
-    composeKeyStrokes("*5" + masterCode)
+    sendTelnetCommand(tpiCommands["EnterUserCodeProgramming"])
 }
 
 private composeInstallerCode(){
@@ -457,7 +457,7 @@ private composeSetUserCode(name, position, code){
         state.newCodePosition = codePosition
         state.newName = name
         state.programmingMode = SETUSERCODEINITIALIZE
-        composeKeyStrokes("*5" + masterCode)
+        sendTelnetCommand(tpiCommands["EnterUserCodeProgramming"])
     } else {
         ifDebug("Not supported by Vista TPI")
     }
