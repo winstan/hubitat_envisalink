@@ -1235,7 +1235,7 @@ private setUserCodeSend(){
 }
 
 private setUserCodeComplete(){
-    ifDebug("setUserCodeSend")
+    ifDebug("setUserCodeComplete")
     state.programmingMode = ""
     def storedCodes = new groovy.json.JsonSlurper().parseText(device.currentValue("Codes"))
     assert storedCodes instanceof Map
