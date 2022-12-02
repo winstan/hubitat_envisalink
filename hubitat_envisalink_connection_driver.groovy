@@ -665,11 +665,13 @@ def parse(String message) {
                 }
                 break
             case USEROPENING:
-                parseUser(message[3], message[4..7])
+                // Ignore leading '00' of user position
+                parseUser(message[3], message[6..7])
                 break
             case USERCLOSING:
                 partitionArmedNight(message[3])
-                parseUser(message[3], message[4..7])
+                // Ignore leading '00' of user position
+                parseUser(message[3], message[6..7])
                 break
             case SPECIALCLOSING:
                 send_Event(name:"Status", value: SPECIALCLOSING, isStateChange: true)
